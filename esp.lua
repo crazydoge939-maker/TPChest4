@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -19,7 +20,6 @@ panel.Position = UDim2.new(0.5, -150, 0.5, -100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
-panel.ResetOnSpawn = false
 panel.Parent = screenGui
 
 -- Сделать панель перетаскиваемой
@@ -193,7 +193,7 @@ local function startTeleportCycle()
 					end
 				end
 			end
-			wait(0.25)
+			wait(1)
 		end
 	end
 	coroutine.wrap(cycle)()
