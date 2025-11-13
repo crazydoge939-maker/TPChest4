@@ -2,7 +2,6 @@ local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
-
 local runService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local workspace = game.Workspace
@@ -56,7 +55,7 @@ runService.RenderStepped:Connect(function()
     end
 end)
 
--- Добавляем заголовок
+-- Заголовок
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -67,10 +66,10 @@ title.TextSize = 20
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Создаем кнопку для запуска
+-- Кнопки
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
-startButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+startButton.Position = UDim2.new(0.1, 0, 0.4, 0)
 startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.BorderSizePixel = 2
 startButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -80,10 +79,9 @@ startButton.Text = "Начать телепорт"
 startButton.TextColor3 = Color3.new(1, 1, 1)
 startButton.Parent = panel
 
--- Создаем кнопку для остановки
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopButton.Position = UDim2.new(0.1, 0, 0.65, 0)
+stopButton.Position = UDim2.new(0.1, 0, 0.55, 0)
 stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.BorderSizePixel = 2
 stopButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -94,22 +92,22 @@ stopButton.TextColor3 = Color3.new(1, 1, 1)
 stopButton.Parent = panel
 stopButton.Visible = false
 
--- Создаем метку для количества сундуков
+-- Метка для количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
-chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
-chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-chestCountLabel.BorderSizePixel = 0
-chestCountLabel.Text = "Всего сундуков: 0"
-chestCountLabel.Font = Enum.Font.SourceSans
-chestCountLabel.TextSize = 16
-chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
-chestCountLabel.Parent = panel
+ chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
+ chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
+ chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ chestCountLabel.BorderSizePixel = 0
+ chestCountLabel.Text = "Всего сундуков: 0"
+ chestCountLabel.Font = Enum.Font.SourceSans
+ chestCountLabel.TextSize = 16
+ chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
+ chestCountLabel.Parent = panel
 
--- Создаем метку для координат игрока
+-- Метка для координат
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 100)
+coordsLabel.Position = UDim2.new(0, 10, 0, 160)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "Координаты: X=0, Y=0, Z=0"
@@ -141,7 +139,7 @@ local function updateChestCount()
     chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
 end
 
--- Обновляем счетчик каждые 5 секунд
+-- Обновлять каждые 5 секунд
 spawn(function()
     while true do
         updateChestCount()
@@ -175,10 +173,11 @@ local function activateNearbyProximityPrompts()
         if model:IsA("Model") then
             local prompt = model:FindFirstChildOfClass("ProximityPrompt")
             if prompt and prompt.Enabled then
-                local modelPos = model:GetPrimaryPartCFrame() and model:GetPrimaryPartCFrame().Position or nil
+                local modelPos = model:GetModelCFrame() and model:GetModelCFrame().Position or nil
                 if not modelPos then continue end
                 local distance = (humanoidRootPart.Position - modelPos).Magnitude
                 if distance <= radius then
+                    -- Активируем Prompt
                     prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
                 end
             end
@@ -187,64 +186,86 @@ local function activateNearbyProximityPrompts()
 end
 
 local teleporting = false
-local capsule -- переменная для капсулы
+local capsulePart -- для хранения ссылки на капсулу
 
 local function createCapsule()
-    if capsule then return end
-    capsule = Instance.new("Model")
-    capsule.Name = "PlayerCapsule"
+    if capsulePart then return end
+    local radius = 3 -- радиус капсулы
+    local height = 6 -- высота капсулы
 
-    local size = 4 -- размер капсулы
-    local thickness = 0.2
-    local yOffset = size/2
+    local parts = {}
 
-    -- Создаем стенки
-    local function createPart(position)
-        local part = Instance.new("Part")
-        part.Size = Vector3.new(size, size, size)
-        part.Position = position
-        part.Anchored = true
-        part.Transparency = 0.5
-        part.Color = Color3.new(0.8, 0.8, 1)
-        part.CanCollide = true
-        part.Parent = capsule
-        return part
+    -- Создаем основания (нижнюю и верхнюю)
+    local bottom = Instance.new("Part")
+    bottom.Shape = Enum.PartType.Cylinder
+    bottom.Size = Vector3.new(radius*2, 0.2, radius*2)
+    bottom.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y - height/2, humanoidRootPart.Position.Z) * CFrame.Angles(math.pi/2, 0, 0)
+    bottom.Anchored = true
+    bottom.Transparency = 0.5
+    bottom.Color = Color3.new(0, 0, 0)
+    bottom.CanCollide = true
+    bottom.Name = "CapsuleBase"
+    bottom.Parent = workspace
+    table.insert(parts, bottom)
+
+    local top = Instance.new("Part")
+    top.Shape = Enum.PartType.Cylinder
+    top.Size = Vector3.new(radius*2, 0.2, radius*2)
+    top.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y + height/2, humanoidRootPart.Position.Z) * CFrame.Angles(math.pi/2, 0, 0)
+    top.Anchored = true
+    top.Transparency = 0.5
+    top.Color = Color3.new(0, 0, 0)
+    top.CanCollide = true
+    top.Name = "CapsuleTop"
+    top.Parent = workspace
+    table.insert(parts, top)
+
+    -- Создаем боковые стенки
+    local sides = {}
+    local angles = {0, math.pi/2, math.pi, 3*math.pi/2}
+    for _, angle in pairs(angles) do
+        local side = Instance.new("Part")
+        side.Shape = Enum.PartType.Cylinder
+        side.Size = Vector3.new(radius*2, height, 0.2)
+        side.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y, humanoidRootPart.Position.Z) * CFrame.Angles(0, angle, 0)
+        side.Anchored = true
+        side.Transparency = 0.5
+        side.Color = Color3.new(0, 0, 0)
+        side.CanCollide = true
+        side.Name = "CapsuleSide"
+        side.Parent = workspace
+        table.insert(parts, side)
     end
 
-    local centerPos = humanoidRootPart.Position
+    -- Объединяем все части в одну модель (опционально)
+    local capsuleModel = Instance.new("Model")
+    capsuleModel.Name = "PlayerCapsule"
+    for _, p in pairs(parts) do
+        p.Parent = capsuleModel
+    end
+    capsuleModel.Parent = workspace
 
-    -- Создаем боковые стены
-    local leftWall = createPart(Vector3.new(centerPos.X - size/2, centerPos.Y, centerPos.Z))
-    local rightWall = createPart(Vector3.new(centerPos.X + size/2, centerPos.Y, centerPos.Z))
-    local frontWall = createPart(Vector3.new(centerPos.X, centerPos.Y, centerPos.Z - size/2))
-    local backWall = createPart(Vector3.new(centerPos.X, centerPos.Y, centerPos.Z + size/2))
-    -- Создаем пол
-    local bottom = createPart(Vector3.new(centerPos.X, centerPos.Y - yOffset, centerPos.Z))
-    -- Создаем потолок
-    local top = createPart(Vector3.new(centerPos.X, centerPos.Y + yOffset, centerPos.Z))
+    capsulePart = capsuleModel
 
-    -- Родитель модели
-    capsule.Parent = workspace
+    -- Помещаем игрок внутрь капсулы
+    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y, humanoidRootPart.Position.Z)
 end
 
 local function removeCapsule()
-    if capsule then
-        capsule:Destroy()
-        capsule = nil
+    if capsulePart then
+        capsulePart:Destroy()
+        capsulePart = nil
     end
 end
 
+-- Запуск и остановка телепорта
 local function startTeleportCycle()
     if teleporting then return end
     teleporting = true
     startButton.Visible = false
     stopButton.Visible = true
-
-    -- Создаем капсулу
     createCapsule()
 
-    -- Блокируем игрока внутри капсулы
-    humanoidRootPart.Anchored = true
     if character and character:FindFirstChildOfClass("Humanoid") then
         character:FindFirstChildOfClass("Humanoid").PlatformStand = true
     end
@@ -273,23 +294,19 @@ local function startTeleportCycle()
 end
 
 local function stopTeleportCycle()
-    if not teleporting then return end
     teleporting = false
-
-    -- Удаляем капсулу
-    removeCapsule()
-
-    -- Разблокируем игрока
-    humanoidRootPart.Anchored = false
+    startButton.Visible = true
+    stopButton.Visible = false
     if character and character:FindFirstChildOfClass("Humanoid") then
         character:FindFirstChildOfClass("Humanoid").PlatformStand = false
     end
+    removeCapsule()
 end
 
 startButton.MouseButton1Click:Connect(startTeleportCycle)
 stopButton.MouseButton1Click:Connect(stopTeleportCycle)
 
--- Добавляем подсветку сундуков
+-- Подсветка сундуков
 local function addHighlightToChests()
     for _, model in pairs(workspace:GetDescendants()) do
         if model:IsA("Model") and model.Name == "chests" then
