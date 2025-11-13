@@ -178,23 +178,31 @@ end
 
 local teleporting = false
 local capsule -- переменная для капсулы
+local weld -- weld для закрепления внутри капсулы
 
 local function createCapsule()
     local part = Instance.new("Part")
     part.Shape = Enum.PartType.Cylinder
     part.Size = Vector3.new(4, 8, 4)
-    part.Transparency = 0.5
+    part.Transparency = 0.2 -- чуть выше, чтобы было видно, что внутри игрок
     part.Anchored = true
     part.CanCollide = false
     part.Color = Color3.new(0, 1, 0)
     part.Name = "TeleportCapsule"
     part.Parent = workspace
-    return part
+
+    -- создаем weld, чтобы закрепить игрок внутри капсулы
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = part
+    weld.Part1 = humanoidRootPart
+    weld.Parent = part
+
+    return part, weld
 end
 
 local function updateCapsulePosition()
     if capsule then
-        local yOffset = capsule.Size.Y/2
+        local yOffset = capsule.Size.Y / 2
         capsule.CFrame = CFrame.new(humanoidRootPart.Position + Vector3.new(0, yOffset, 0))
     end
 end
@@ -205,18 +213,16 @@ local function startTeleportCycle()
     startButton.Visible = false
     stopButton.Visible = true
 
-    -- создаем капсулу и закрепляем за игроком через Weld
-    capsule = createCapsule()
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = capsule
-    weld.Part1 = humanoidRootPart
-    weld.Parent = capsule
+    -- создаем капсулу
+    capsule, weld = createCapsule()
 
+    -- делаем платформу внутри капсулы, чтобы внутри мог находиться игрок
+    -- отключаем PlatformStand чтобы внутри можно было двигаться
     if character and character:FindFirstChildOfClass("Humanoid") then
         character:FindFirstChildOfClass("Humanoid").PlatformStand = true
     end
 
-    -- Обновляем позицию капсулы каждый кадр
+    -- обновляем позицию капсулы каждый кадр
     local connection
     connection = runService.Heartbeat:Connect(function()
         if capsule then
@@ -252,19 +258,19 @@ local function stopTeleportCycle()
     startButton.Visible = true
     stopButton.Visible = false
 
-    -- удаляем капсулу
+    -- удаляем капсулу и weld
     if capsule then
         capsule:Destroy()
         capsule = nil
     end
+    if weld then
+        weld:Destroy()
+        weld = nil
+    end
 
-    -- отключаем PlatformStand и возвращаем управление
+    -- возвращаем управление
     if character and character:FindFirstChildOfClass("Humanoid") then
         character:FindFirstChildOfClass("Humanoid").PlatformStand = false
-    end
-    -- отключаем обновление позиции
-    if runService.Heartbeat then
-        runService.Heartbeat:Disconnect()
     end
 end
 
