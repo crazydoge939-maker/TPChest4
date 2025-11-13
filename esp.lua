@@ -189,7 +189,7 @@ local function startTeleportCycle()
 					end
 				end
 			end
-			wait(0.25)
+			wait(0.1)
 		end
 	end
 	coroutine.wrap(cycle)()
@@ -243,7 +243,7 @@ spawn(function()
 	while true do
 		updateChestCount()
 		addHighlightToChests()
-		wait(0.25)
+		wait(0.1)
 	end
 end)
 
