@@ -26,37 +26,37 @@ local dragging = false
 local dragInput, dragStart, startPos
 
 panel.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = panel.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
 
 panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-		dragInput = input
-	end
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        dragInput = input
+    end
 end)
 
 runService.RenderStepped:Connect(function()
-	if dragging and dragInput then
-		local delta = dragInput.Position - dragStart
-		panel.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
+    if dragging and dragInput then
+        local delta = dragInput.Position - dragStart
+        panel.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
 end)
 
--- Добавляем заголовок
+-- Заголовок
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -67,7 +67,7 @@ title.TextSize = 20
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Создаем кнопку для запуска
+-- Кнопки
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
 startButton.Position = UDim2.new(0.1, 0, 0.5, 0)
@@ -80,7 +80,6 @@ startButton.Text = "Начать телепорт"
 startButton.TextColor3 = Color3.new(1, 1, 1)
 startButton.Parent = panel
 
--- Создаем кнопку для остановки
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
 stopButton.Position = UDim2.new(0.1, 0, 0.5, 0)
@@ -94,7 +93,7 @@ stopButton.TextColor3 = Color3.new(1, 1, 1)
 stopButton.Parent = panel
 stopButton.Visible = false
 
--- Создаем метку для количества сундуков
+-- Метки
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
 chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
@@ -106,7 +105,6 @@ chestCountLabel.TextSize = 16
 chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
 chestCountLabel.Parent = panel
 
--- Создаем метку для координат игрока
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
 coordsLabel.Position = UDim2.new(0, 10, 0, 160)
@@ -118,163 +116,165 @@ coordsLabel.TextSize = 14
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
-local capsule -- переменная для капсулы
-
-local function createCapsule()
-	if capsule then
-		capsule:Destroy()
-	end
-	capsule = Instance.new("Part")
-	capsule.Size = Vector3.new(4, 6, 4) -- размеры капсулы
-	capsule.Transparency = 0.5 -- полупрозрачность
-	capsule.Anchored = true
-	capsule.CanCollide = true
-	capsule.CFrame = humanoidRootPart.CFrame * CFrame.new(0, 3, 0) -- чуть выше игрока
-	capsule.BrickColor = BrickColor.new("Really black")
-	capsule.Name = "TeleportCapsule"
-	capsule.Parent = workspace
-end
-
-local function attachPlayerToCapsule()
-	if not capsule then return end
-	-- закрепляем игрока внутри капсулы
-	-- например, делаем его частью капсулы
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = capsule
-	weld.Part1 = humanoidRootPart
-	weld.Parent = capsule
-end
-
-local function removeCapsule()
-	if capsule then
-		capsule:Destroy()
-		capsule = nil
-	end
-end
-
 -- Обновление координат
 runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z)
+    local pos = humanoidRootPart.Position
+    coordsLabel.Text = string.format("Координаты: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z)
 end)
 
 -- Функции поиска сундуков
 local function getAllChests()
-	local chests = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and model.Name == "chests" then
-			table.insert(chests, model)
-		end
-	end
-	return chests
+    local chests = {}
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model.Name == "chests" then
+            table.insert(chests, model)
+        end
+    end
+    return chests
 end
 
 local function updateChestCount()
-	local chests = getAllChests()
-	local count = #chests
-	chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
+    local chests = getAllChests()
+    local count = #chests
+    chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
 end
 
--- Обновляем счетчик каждые 5 секунд
+-- Обновление каждые 5 секунд
 spawn(function()
-	while true do
-		updateChestCount()
-		wait(5)
-	end
+    while true do
+        updateChestCount()
+        wait(5)
+    end
 end)
 
 local function findAccessibleChest(chests)
-	local accessibleChests = {}
-	for _, chest in pairs(chests) do
-		local accessible = false
-		for _, part in pairs(chest:GetChildren()) do
-			if part:IsA("BasePart") then
-				local y = part.Position.Y
-				if y >= 114 and y <= 180 then
-					accessible = true
-					break
-				end
-			end
-		end
-		if accessible then
-			table.insert(accessibleChests, chest)
-		end
-	end
-	return accessibleChests
+    local accessibleChests = {}
+    for _, chest in pairs(chests) do
+        local accessible = false
+        for _, part in pairs(chest:GetChildren()) do
+            if part:IsA("BasePart") then
+                local y = part.Position.Y
+                if y >= 114 and y <= 180 then
+                    accessible = true
+                    break
+                end
+            end
+        end
+        if accessible then
+            table.insert(accessibleChests, chest)
+        end
+    end
+    return accessibleChests
 end
 
 local function activateNearbyProximityPrompts()
-	local radius = 15
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") then
-			local prompt = model:FindFirstChildOfClass("ProximityPrompt")
-			if prompt and prompt.Enabled then
-				local modelPos = model:GetPrimaryPartCFrame() and model:GetPrimaryPartCFrame().Position or nil
-				if not modelPos then continue end
-				local distance = (humanoidRootPart.Position - modelPos).Magnitude
-				if distance <= radius then
-					-- Активируем Prompt
-					prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
-				end
-			end
-		end
-	end
+    local radius = 15
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") then
+            local prompt = model:FindFirstChildOfClass("ProximityPrompt")
+            if prompt and prompt.Enabled then
+                local modelPos = model:GetPrimaryPartCFrame() and model:GetPrimaryPartCFrame().Position or nil
+                if not modelPos then continue end
+                local distance = (humanoidRootPart.Position - modelPos).Magnitude
+                if distance <= radius then
+                    -- Активируем Prompt
+                    prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
+                end
+            end
+        end
+    end
 end
 
 local teleporting = false
+local capsule = nil -- переменная для капсулы
+
+local function createCapsuleAroundPlayer()
+    -- Создаем капсулу
+    local part = Instance.new("Part")
+    part.Name = "TeleportCapsule"
+    part.Size = Vector3.new(4, 6, 4) -- размеры капсулы
+    part.Transparency = 0.5 -- прозрачность
+    part.Anchored = true
+    part.CanCollide = false -- отключаем столкновения
+    part.CFrame = humanoidRootPart.CFrame -- позиция по центру игрока
+    part.Parent = workspace
+    return part
+end
+
+local function attachPlayerToCapsule()
+    if not capsule then return end
+    -- Создаем сварку, чтобы игрок внутри
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = capsule
+    weld.Part1 = humanoidRootPart
+    weld.Parent = humanoidRootPart
+end
+
+local function removeCapsule()
+    if capsule then
+        -- Удаляем сварку
+        for _, weld in pairs(humanoidRootPart:GetChildren()) do
+            if weld:IsA("WeldConstraint") then
+                weld:Destroy()
+            end
+        end
+        capsule:Destroy()
+        capsule = nil
+    end
+end
+
 local function startTeleportCycle()
-	if teleporting then return end
-	teleporting = true
-	startButton.Visible = false
-	stopButton.Visible = true
+    if teleporting then return end
+    teleporting = true
+    startButton.Visible = false
+    stopButton.Visible = true
 
-	-- создаем капсулу и закрепляем внутри игрока
-	createCapsule()
-	attachPlayerToCapsule()
+    -- Создаем капсулу
+    capsule = createCapsuleAroundPlayer()
+    attachPlayerToCapsule()
 
-	-- блокируем движение
-	humanoidRootPart.Anchored = true
-	if character and character:FindFirstChildOfClass("Humanoid") then
-		character:FindFirstChildOfClass("Humanoid").PlatformStand = true
-	end
+    -- Временно отключаем физику
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        character:FindFirstChildOfClass("Humanoid").PlatformStand = true
+    end
 
-	-- цикл телепортации
-	local function cycle()
-		while teleporting do
-			activateNearbyProximityPrompts()
-			local chests = getAllChests()
-			local accessibleChests = findAccessibleChest(chests)
-			if #accessibleChests > 0 then
-				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= 114 and y <= 180 then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(1)
-		end
-	end
-	coroutine.wrap(cycle)()
+    -- основной цикл телепортации
+    local function cycle()
+        while teleporting do
+            activateNearbyProximityPrompts()
+            local chests = getAllChests()
+            local accessibleChests = findAccessibleChest(chests)
+            if #accessibleChests > 0 then
+                local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
+                for _, part in pairs(selectedChest:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local y = part.Position.Y
+                        if y >= 114 and y <= 180 then
+                            humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+                            break
+                        end
+                    end
+                end
+            end
+            wait(1)
+        end
+    end
+    coroutine.wrap(cycle)()
 end
 
 local function stopTeleportCycle()
-	teleporting = false
-	startButton.Visible = true
-	stopButton.Visible = false
+    teleporting = false
+    startButton.Visible = true
+    stopButton.Visible = false
 
-	-- удаляем капсулу и разблокируем движение
-	removeCapsule()
-	humanoidRootPart.Anchored = false
-	if character and character:FindFirstChildOfClass("Humanoid") then
-		character:FindFirstChildOfClass("Humanoid").PlatformStand = false
-	end
+    -- Удаляем капсулу
+    removeCapsule()
+
+    -- Включаем обратно физику
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        character:FindFirstChildOfClass("Humanoid").PlatformStand = false
+    end
 end
 
--- Остальной код остается без изменений
 startButton.MouseButton1Click:Connect(startTeleportCycle)
 stopButton.MouseButton1Click:Connect(stopTeleportCycle)
