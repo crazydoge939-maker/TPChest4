@@ -251,7 +251,7 @@ spawn(function()
 	while true do
 		updateChestCount()
 		addHighlightToChests()
-		wait(1)
+		wait(0.25)
 	end
 end)
 
