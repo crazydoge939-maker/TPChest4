@@ -226,9 +226,9 @@ local function addHighlightToChests()
 				if part:IsA("BasePart") then
 					local highlight = Instance.new("Highlight")
 					highlight.Adornee = part
-					highlight.FillColor = Color3.new(1, 1, 0)
+					highlight.FillColor = Color3.new(0, 0.490196, 0)
 					highlight.FillTransparency = 0.2
-					highlight.OutlineColor = Color3.new(1, 1, 0)
+					highlight.OutlineColor = Color3.new(0, 1, 0)
 					highlight.OutlineTransparency = 0
 					highlight.Parent = part
 					table.insert(activeHighlights, highlight)
