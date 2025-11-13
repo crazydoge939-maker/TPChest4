@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -129,7 +130,11 @@ local function getAllChests()
 	local chests = {}
 	for _, model in pairs(workspace:GetDescendants()) do
 		if model:IsA("Model") and model.Name == "chests" then
-			table.insert(chests, model)
+			for _, child in pairs(model:GetChildren()) do
+				if child:IsA("BasePart") then
+					table.insert(chests, child)
+				end
+			end
 		end
 	end
 	return chests
@@ -170,37 +175,11 @@ local function findAccessibleChest(chests)
 end
 
 local teleporting = false
-local capsule -- для хранения капсулы
-local function createCapsule()
-	if capsule then
-		capsule:Destroy()
-	end
-	capsule = Instance.new("Part")
-	capsule.Name = "PlayerCapsule"
-	capsule.Anchored = true
-	capsule.Transparency = 0.5
-	capsule.Material = Enum.Material.ForceField
-	capsule.Color = Color3.new(0, 1, 0)
-	capsule.Size = Vector3.new(4, 6, 4) -- размеры капсулы
-	capsule.CFrame = CFrame.new(humanoidRootPart.Position)
-	capsule.Parent = workspace
-end
-
-local function destroyCapsule()
-	if capsule then
-		capsule:Destroy()
-		capsule = nil
-	end
-end
-
 local function startTeleportCycle()
 	if teleporting then return end
 	teleporting = true
 	startButton.Visible = false
 	stopButton.Visible = true
-
-	-- Создаем капсулу вокруг игрока
-	createCapsule()
 
 	if character and character:FindFirstChildOfClass("Humanoid") then
 		character:FindFirstChildOfClass("Humanoid").PlatformStand = true
@@ -236,8 +215,6 @@ local function stopTeleportCycle()
 	if character and character:FindFirstChildOfClass("Humanoid") then
 		character:FindFirstChildOfClass("Humanoid").PlatformStand = false
 	end
-	-- Удаляем капсулу
-	destroyCapsule()
 end
 
 startButton.MouseButton1Click:Connect(startTeleportCycle)
