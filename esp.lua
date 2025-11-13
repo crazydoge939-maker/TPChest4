@@ -70,7 +70,7 @@ title.Parent = panel
 -- Создаем кнопку для запуска
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
-startButton.Position = UDim2.new(0.1, 0, 0.6, 0)
+startButton.Position = UDim2.new(0.1, 0, 0.5, 0)
 startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.BorderSizePixel = 2
 startButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -83,7 +83,7 @@ startButton.Parent = panel
 -- Создаем кнопку для остановки
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopButton.Position = UDim2.new(0.1, 0, 0.6, 0)
+stopButton.Position = UDim2.new(0.1, 0, 0.5, 0)
 stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.BorderSizePixel = 2
 stopButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -97,7 +97,7 @@ stopButton.Visible = false
 -- Создаем метку для количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 80)
+chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 chestCountLabel.BorderSizePixel = 0
 chestCountLabel.Text = "Всего сундуков: 0"
