@@ -25,34 +25,34 @@ local dragging = false
 local dragInput, dragStart, startPos
 
 panel.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = panel.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = panel.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
 
 panel.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-        dragInput = input
-    end
+	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+		dragInput = input
+	end
 end)
 
 runService.RenderStepped:Connect(function()
-    if dragging and dragInput then
-        local delta = dragInput.Position - dragStart
-        panel.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
+	if dragging and dragInput then
+		local delta = dragInput.Position - dragStart
+		panel.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
 end)
 
 -- Заголовок
@@ -60,7 +60,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.BorderSizePixel = 0
-title.Text = "Телепорт к сункам"
+title.Text = "Телепорт к сундкам"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.TextColor3 = Color3.new(1, 1, 1)
@@ -69,7 +69,7 @@ title.Parent = panel
 -- Кнопки
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
-startButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+startButton.Position = UDim2.new(0.1, 0, 0.5, 0)
 startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.BorderSizePixel = 2
 startButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -81,7 +81,7 @@ startButton.Parent = panel
 
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopButton.Position = UDim2.new(0.1, 0, 0.55, 0)
+stopButton.Position = UDim2.new(0.1, 0, 0.5, 0)
 stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.BorderSizePixel = 2
 stopButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -92,19 +92,19 @@ stopButton.TextColor3 = Color3.new(1, 1, 1)
 stopButton.Parent = panel
 stopButton.Visible = false
 
--- Метка для количества сундуков
+-- Метка количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
- chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
- chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
- chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
- chestCountLabel.BorderSizePixel = 0
- chestCountLabel.Text = "Всего сундуков: 0"
- chestCountLabel.Font = Enum.Font.SourceSans
- chestCountLabel.TextSize = 16
- chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
- chestCountLabel.Parent = panel
+chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
+chestCountLabel.Position = UDim2.new(0, 10, 0, 50)
+chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+chestCountLabel.BorderSizePixel = 0
+chestCountLabel.Text = "Всего сундуков: 0"
+chestCountLabel.Font = Enum.Font.SourceSans
+chestCountLabel.TextSize = 16
+chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
+chestCountLabel.Parent = panel
 
--- Метка для координат
+-- Метка координат
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
 coordsLabel.Position = UDim2.new(0, 10, 0, 160)
@@ -118,189 +118,143 @@ coordsLabel.Parent = panel
 
 -- Обновление координат
 runService.RenderStepped:Connect(function()
-    local pos = humanoidRootPart.Position
-    coordsLabel.Text = string.format("Координаты: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z)
+	local pos = humanoidRootPart.Position
+	coordsLabel.Text = string.format("Координаты: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z)
 end)
 
 -- Функции поиска сундуков
 local function getAllChests()
-    local chests = {}
-    for _, model in pairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and model.Name == "chests" then
-            table.insert(chests, model)
-        end
-    end
-    return chests
+	local chests = {}
+	for _, model in pairs(workspace:GetDescendants()) do
+		if model:IsA("Model") and model.Name == "chests" then
+			table.insert(chests, model)
+		end
+	end
+	return chests
 end
 
 local function updateChestCount()
-    local chests = getAllChests()
-    local count = #chests
-    chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
+	local chests = getAllChests()
+	local count = #chests
+	chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
 end
 
--- Обновлять каждые 5 секунд
+-- Обновляем счет каждые 5 сек
 spawn(function()
-    while true do
-        updateChestCount()
-        wait(5)
-    end
+	while true do
+		updateChestCount()
+		wait(5)
+	end
 end)
 
 local function findAccessibleChest(chests)
-    local accessibleChests = {}
-    for _, chest in pairs(chests) do
-        local accessible = false
-        for _, part in pairs(chest:GetChildren()) do
-            if part:IsA("BasePart") then
-                local y = part.Position.Y
-                if y >= 114 and y <= 180 then
-                    accessible = true
-                    break
-                end
-            end
-        end
-        if accessible then
-            table.insert(accessibleChests, chest)
-        end
-    end
-    return accessibleChests
-end
-
-local function activateNearbyProximityPrompts()
-    local radius = 15
-    for _, model in pairs(workspace:GetDescendants()) do
-        if model:IsA("Model") then
-            local prompt = model:FindFirstChildOfClass("ProximityPrompt")
-            if prompt and prompt.Enabled then
-                local modelPos = model:GetModelCFrame() and model:GetModelCFrame().Position or nil
-                if not modelPos then continue end
-                local distance = (humanoidRootPart.Position - modelPos).Magnitude
-                if distance <= radius then
-                    -- Активируем Prompt
-                    prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
-                end
-            end
-        end
-    end
+	local accessibleChests = {}
+	for _, chest in pairs(chests) do
+		local accessible = false
+		for _, part in pairs(chest:GetChildren()) do
+			if part:IsA("BasePart") then
+				local y = part.Position.Y
+				if y >= 114 and y <= 180 then
+					accessible = true
+					break
+				end
+			end
+		end
+		if accessible then
+			table.insert(accessibleChests, chest)
+		end
+	end
+	return accessibleChests
 end
 
 local teleporting = false
-local capsulePart -- для хранения ссылки на капсулу
+local capsule -- для ссылки на капсулу
 
 local function createCapsule()
-    if capsulePart then return end
-    local radius = 3 -- радиус капсулы
-    local height = 6 -- высота капсулы
+	if capsule then
+		capsule:Destroy()
+	end
+	capsule = Instance.new("Part")
+	capsule.Anchored = true
+	capsule.CanCollide = true
+	capsule.Transparency = 0.5
+	capsule.Color = Color3.new(0, 0, 0)
+	capsule.Size = Vector3.new(10, 15, 10)
+	capsule.CFrame = CFrame.new(humanoidRootPart.Position) * CFrame.new(0, capsule.Size.Y/2, 0)
+	capsule.Name = "PlayerCapsule"
+	capsule.Parent = workspace
 
-    local parts = {}
+	-- создаем внутреннюю прозрачную часть, чтобы внутри было пространство
+	local interior = Instance.new("Part")
+	interior.Size = Vector3.new(capsule.Size.X - 0.2, capsule.Size.Y - 0.2, capsule.Size.Z - 0.2)
+	interior.CFrame = capsule.CFrame
+	interior.Transparency = 1
+	interior.Anchored = true
+	interior.CanCollide = false
+	interior.Parent = capsule
 
-    -- Создаем основания (нижнюю и верхнюю)
-    local bottom = Instance.new("Part")
-    bottom.Shape = Enum.PartType.Cylinder
-    bottom.Size = Vector3.new(radius*2, 0.2, radius*2)
-    bottom.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y - height/2, humanoidRootPart.Position.Z) * CFrame.Angles(math.pi/2, 0, 0)
-    bottom.Anchored = true
-    bottom.Transparency = 0.5
-    bottom.Color = Color3.new(0, 0, 0)
-    bottom.CanCollide = true
-    bottom.Name = "CapsuleBase"
-    bottom.Parent = workspace
-    table.insert(parts, bottom)
-
-    local top = Instance.new("Part")
-    top.Shape = Enum.PartType.Cylinder
-    top.Size = Vector3.new(radius*2, 0.2, radius*2)
-    top.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y + height/2, humanoidRootPart.Position.Z) * CFrame.Angles(math.pi/2, 0, 0)
-    top.Anchored = true
-    top.Transparency = 0.5
-    top.Color = Color3.new(0, 0, 0)
-    top.CanCollide = true
-    top.Name = "CapsuleTop"
-    top.Parent = workspace
-    table.insert(parts, top)
-
-    -- Создаем боковые стенки
-    local sides = {}
-    local angles = {0, math.pi/2, math.pi, 3*math.pi/2}
-    for _, angle in pairs(angles) do
-        local side = Instance.new("Part")
-        side.Shape = Enum.PartType.Cylinder
-        side.Size = Vector3.new(radius*2, height, 0.2)
-        side.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y, humanoidRootPart.Position.Z) * CFrame.Angles(0, angle, 0)
-        side.Anchored = true
-        side.Transparency = 0.5
-        side.Color = Color3.new(0, 0, 0)
-        side.CanCollide = true
-        side.Name = "CapsuleSide"
-        side.Parent = workspace
-        table.insert(parts, side)
-    end
-
-    -- Объединяем все части в одну модель (опционально)
-    local capsuleModel = Instance.new("Model")
-    capsuleModel.Name = "PlayerCapsule"
-    for _, p in pairs(parts) do
-        p.Parent = capsuleModel
-    end
-    capsuleModel.Parent = workspace
-
-    capsulePart = capsuleModel
-
-    -- Помещаем игрок внутрь капсулы
-    humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position.X, humanoidRootPart.Position.Y, humanoidRootPart.Position.Z)
+	-- создаем неразрушаемую прозрачную оболочку, чтобы игрок не мог выйти
+	local outer = Instance.new("Part")
+	outer.Size = capsule.Size
+	outer.CFrame = capsule.CFrame
+	outer.Transparency = 0.5
+	outer.Anchored = true
+	outer.CanCollide = true
+	outer.Name = "OuterShell"
+	outer.Parent = workspace
 end
 
 local function removeCapsule()
-    if capsulePart then
-        capsulePart:Destroy()
-        capsulePart = nil
-    end
+	if capsule then
+		capsule:Destroy()
+		capsule = nil
+	end
+	local outer = workspace:FindFirstChild("OuterShell")
+	if outer then
+		outer:Destroy()
+	end
 end
 
--- Запуск и остановка телепорта
 local function startTeleportCycle()
-    if teleporting then return end
-    teleporting = true
-    startButton.Visible = false
-    stopButton.Visible = true
-    createCapsule()
+	if teleporting then return end
+	teleporting = true
+	createCapsule()
+	if character and character:FindFirstChildOfClass("Humanoid") then
+		character:FindFirstChildOfClass("Humanoid").PlatformStand = true
+	end
+	startButton.Visible = false
+	stopButton.Visible = true
 
-    if character and character:FindFirstChildOfClass("Humanoid") then
-        character:FindFirstChildOfClass("Humanoid").PlatformStand = true
-    end
-
-    local function cycle()
-        while teleporting do
-            activateNearbyProximityPrompts()
-            local chests = getAllChests()
-            local accessibleChests = findAccessibleChest(chests)
-            if #accessibleChests > 0 then
-                local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-                for _, part in pairs(selectedChest:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        local y = part.Position.Y
-                        if y >= 114 and y <= 180 then
-                            humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-                            break
-                        end
-                    end
-                end
-            end
-            wait(1)
-        end
-    end
-    coroutine.wrap(cycle)()
+	-- цикл телепортации
+	coroutine.wrap(function()
+		while teleporting do
+			local chests = getAllChests()
+			local accessibleChests = findAccessibleChest(chests)
+			if #accessibleChests > 0 then
+				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
+				for _, part in pairs(selectedChest:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= 114 and y <= 180 then
+							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+							break
+						end
+					end
+				end
+			end
+			wait(1)
+		end
+	end)()
 end
 
 local function stopTeleportCycle()
-    teleporting = false
-    startButton.Visible = true
-    stopButton.Visible = false
-    if character and character:FindFirstChildOfClass("Humanoid") then
-        character:FindFirstChildOfClass("Humanoid").PlatformStand = false
-    end
-    removeCapsule()
+	teleporting = false
+	if character and character:FindFirstChildOfClass("Humanoid") then
+		character:FindFirstChildOfClass("Humanoid").PlatformStand = false
+	end
+	removeCapsule()
+	startButton.Visible = true
+	stopButton.Visible = false
 end
 
 startButton.MouseButton1Click:Connect(startTeleportCycle)
@@ -308,21 +262,21 @@ stopButton.MouseButton1Click:Connect(stopTeleportCycle)
 
 -- Подсветка сундуков
 local function addHighlightToChests()
-    for _, model in pairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and model.Name == "chests" then
-            for _, part in pairs(model:GetChildren()) do
-                if part:IsA("BasePart") then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Adornee = part
-                    highlight.FillColor = Color3.new(1, 1, 0)
-                    highlight.FillTransparency = 0.2
-                    highlight.OutlineColor = Color3.new(1, 1, 0)
-                    highlight.OutlineTransparency = 0
-                    highlight.Parent = part
-                end
-            end
-        end
-    end
+	for _, model in pairs(workspace:GetDescendants()) do
+		if model:IsA("Model") and model.Name == "chests" then
+			for _, part in pairs(model:GetChildren()) do
+				if part:IsA("BasePart") then
+					local highlight = Instance.new("Highlight")
+					highlight.Adornee = part
+					highlight.FillColor = Color3.new(1, 1, 0)
+					highlight.FillTransparency = 0.2
+					highlight.OutlineColor = Color3.new(1, 1, 0)
+					highlight.OutlineTransparency = 0
+					highlight.Parent = part
+				end
+			end
+		end
+	end
 end
 
 addHighlightToChests()
