@@ -70,7 +70,7 @@ title.Parent = panel
 -- Создаем кнопку для запуска
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
-startButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+startButton.Position = UDim2.new(0.1, 0, 0.6, 0)
 startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.BorderSizePixel = 2
 startButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -83,7 +83,7 @@ startButton.Parent = panel
 -- Создаем кнопку для остановки
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopButton.Position = UDim2.new(0.1, 0, 0.55, 0)
+stopButton.Position = UDim2.new(0.1, 0, 0.6, 0)
 stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.BorderSizePixel = 2
 stopButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -97,7 +97,7 @@ stopButton.Visible = false
 -- Создаем метку для количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
+chestCountLabel.Position = UDim2.new(0, 10, 0, 80)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 chestCountLabel.BorderSizePixel = 0
 chestCountLabel.Text = "Всего сундуков: 0"
@@ -109,7 +109,7 @@ chestCountLabel.Parent = panel
 -- Создаем метку для координат игрока
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 170)
+coordsLabel.Position = UDim2.new(0, 10, 0, 180)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "Координаты: X=0, Y=0, Z=0"
@@ -138,7 +138,7 @@ end
 local function updateChestCount()
 	local chests = getAllChests()
 	local count = #chests
-	chestCountLabel.Text = "Всего сундуков: " .. count
+	chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
 end
 
 -- Обновляем счетчик каждые 5 секунд
@@ -156,7 +156,7 @@ local function findAccessibleChest(chests)
 		for _, part in pairs(chest:GetChildren()) do
 			if part:IsA("BasePart") then
 				local y = part.Position.Y
-				if y >= 115 and y <= 180 then
+				if y >= 114 and y <= 180 then
 					accessible = true
 					break
 				end
@@ -211,7 +211,7 @@ local function startTeleportCycle()
 				for _, part in pairs(selectedChest:GetChildren()) do
 					if part:IsA("BasePart") then
 						local y = part.Position.Y
-						if y >= 115 and y <= 180 then
+						if y >= 114 and y <= 180 then
 							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
 							break
 						end
