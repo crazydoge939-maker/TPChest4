@@ -65,7 +65,7 @@ local function findAccessibleChest(chests)
         for _, part in pairs(chest:GetChildren()) do
             if part:IsA("BasePart") then
                 local y = part.Position.Y
-                if y >= 115 and y <= 180 then
+                if y >= 114 and y <= 180 then
                     accessible = true
                     break
                 end
@@ -87,7 +87,7 @@ local function teleportToRandomAccessibleChest()
     for _, part in pairs(randomChest:GetChildren()) do
         if part:IsA("BasePart") then
             local y = part.Position.Y
-            if y >= 115 and y <= 180 then
+            if y >= 114 and y <= 180 then
                 humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
                 break
             end
@@ -106,12 +106,7 @@ local function activateNearbyProximityPrompts()
                 local distance = (humanoidRootPart.Position - modelPos).Magnitude
                 if distance <= radius then
                     -- Активируем Prompt
-                    local function activatePrompt()
-                        -- Попытка активировать Prompt
-                        prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
-                    end
-                    -- Вызов
-                    activatePrompt()
+                    prompt:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, true)
                 end
             end
         end
@@ -123,6 +118,11 @@ local function startTeleportCycle()
     teleporting = true
     startButton.Visible = false
     stopButton.Visible = true
+
+    -- Сделать игрока закрепленным
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        character:FindFirstChildOfClass("Humanoid").PlatformStand = true
+    end
 
     local function cycle()
         while teleporting do
@@ -136,7 +136,7 @@ local function startTeleportCycle()
                 for _, part in pairs(selectedChest:GetChildren()) do
                     if part:IsA("BasePart") then
                         local y = part.Position.Y
-                        if y >= 115 and y <= 180 then
+                        if y >= 114 and y <= 180 then
                             humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
                             break
                         end
@@ -154,9 +154,34 @@ local function stopTeleportCycle()
     teleporting = false
     startButton.Visible = true
     stopButton.Visible = false
+
+    -- Разблокировать игрока
+    if character and character:FindFirstChildOfClass("Humanoid") then
+        character:FindFirstChildOfClass("Humanoid").PlatformStand = false
+    end
 end
 
 startButton.MouseButton1Click:Connect(startTeleportCycle)
 stopButton.MouseButton1Click:Connect(stopTeleportCycle)
 
--- Обработчики кнопок
+-- Подсветка сундуков
+local function addHighlightToChests()
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model.Name == "chests" then
+            for _, part in pairs(model:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Adornee = part
+                    highlight.FillColor = Color3.new(1, 1, 0) -- Желтый цвет
+                    highlight.OutlineColor = Color3.new(1, 1, 0)
+                    highlight.FillTransparency = 0.2
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = part
+                end
+            end
+        end
+    end
+end
+
+-- Вызов функции для добавления подсветки
+addHighlightToChests()
