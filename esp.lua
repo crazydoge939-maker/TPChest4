@@ -98,7 +98,7 @@ stopButton.Visible = false
 -- Создаем метку для количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 60)
+chestCountLabel.Position = UDim2.new(0, 10, 0, 50)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 chestCountLabel.BorderSizePixel = 0
 chestCountLabel.Text = "Всего сундуков: 0"
@@ -145,14 +145,6 @@ local function updateChestCount()
 	local count = #chests
 	chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
 end
-
--- Обновляем счетчик каждые 5 секунд
-spawn(function()
-	while true do
-		updateChestCount()
-		wait(5)
-	end
-end)
 
 local function findAccessibleChest(chests)
 	local accessibleChests = {}
@@ -221,7 +213,21 @@ startButton.MouseButton1Click:Connect(startTeleportCycle)
 stopButton.MouseButton1Click:Connect(stopTeleportCycle)
 
 -- Добавляем подсветку сундуков
+local activeHighlights = {}
+
+local function clearHighlights()
+	for _, highlight in ipairs(activeHighlights) do
+		if highlight and highlight.Parent then
+			highlight:Destroy()
+		end
+	end
+	activeHighlights = {}
+end
+
 local function addHighlightToChests()
+	-- Сначала очищаем старые подсветки
+	clearHighlights()
+	-- Затем добавляем новые подсветки для всех сундуков
 	for _, model in pairs(workspace:GetDescendants()) do
 		if model:IsA("Model") and model.Name == "chests" then
 			for _, part in pairs(model:GetChildren()) do
@@ -233,10 +239,20 @@ local function addHighlightToChests()
 					highlight.OutlineColor = Color3.new(1, 1, 0)
 					highlight.OutlineTransparency = 0
 					highlight.Parent = part
+					table.insert(activeHighlights, highlight)
 				end
 			end
 		end
 	end
 end
+
+-- Обновляем счетчик каждые 5 секунд
+spawn(function()
+	while true do
+		updateChestCount()
+		addHighlightToChests()
+		wait(1)
+	end
+end)
 
 addHighlightToChests()
