@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -193,7 +192,7 @@ local function startTeleportCycle()
 					end
 				end
 			end
-			wait(1)
+			wait(0.25)
 		end
 	end
 	coroutine.wrap(cycle)()
