@@ -201,7 +201,7 @@ local function startTeleportCycle()
 					end
 				end
 			end
-			wait(1)
+			wait(0.25)
 		end
 	end
 	coroutine.wrap(cycle)()
