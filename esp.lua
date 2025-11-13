@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -172,10 +173,6 @@ local function startTeleportCycle()
 	startButton.Visible = false
 	stopButton.Visible = true
 
-	if character and character:FindFirstChildOfClass("Humanoid") then
-		character:FindFirstChildOfClass("Humanoid").PlatformStand = true
-	end
-
 	local function cycle()
 		while teleporting do
 			local chests = getAllChests()
@@ -202,10 +199,6 @@ local function stopTeleportCycle()
 	teleporting = false
 	startButton.Visible = true
 	stopButton.Visible = false
-
-	if character and character:FindFirstChildOfClass("Humanoid") then
-		character:FindFirstChildOfClass("Humanoid").PlatformStand = false
-	end
 end
 
 startButton.MouseButton1Click:Connect(startTeleportCycle)
