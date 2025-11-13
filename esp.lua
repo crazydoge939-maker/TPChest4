@@ -109,7 +109,7 @@ chestCountLabel.Parent = panel
 -- Создаем метку для координат игрока
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 180)
+coordsLabel.Position = UDim2.new(0, 10, 0, 160)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "Координаты: X=0, Y=0, Z=0"
