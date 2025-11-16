@@ -13,6 +13,7 @@ local HeightMax = 250
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
@@ -20,7 +21,6 @@ local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0, 200, 0, 270)
 panel.Position = UDim2.new(0.5, -150, 0.5, -100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-panel.ResetOnSpawn = false
 panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 panel.Parent = screenGui
