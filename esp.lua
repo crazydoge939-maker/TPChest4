@@ -232,16 +232,17 @@ local function addHighlightToObjects(names)
 	end
 end
 
-local teleporting = false
+local teleportingChest = false
+local teleportingItem = false
 
 local function startTeleportChestCycle()
-	if teleporting then return end
-	teleporting = true
+	if teleportingChest then return end
+	teleportingChest = true
 	startChestButton.Visible = false
 	stopChestButton.Visible = true
 
 	coroutine.wrap(function()
-		while teleporting do
+		while teleportingChest do
 			local chests = getAllObjectsByNames({"chests"})
 			local accessibleChests = {}
 
@@ -279,20 +280,20 @@ local function startTeleportChestCycle()
 end
 
 local function startTeleportItemCycle()
-	if teleporting then return end
-	teleporting = true
+	if teleportingItem then return end
+	teleportingItem = true
 	startItemButton.Visible = false
 	stopItemButton.Visible = true
 
 	coroutine.wrap(function()
-		while teleporting do
+		while teleportingItem do
 			local items = getAllObjectsByNames({"other"})
 			local accessibleItems = {}
 
 			-- Проверка сундуков
-			for _, chest in pairs(items) do
+			for _, item in pairs(items) do
 				local accessible = false
-				for _, part in pairs(chest:GetChildren()) do
+				for _, part in pairs(item:GetChildren()) do
 					if part:IsA("BasePart") then
 						local y = part.Position.Y
 						if y >= HeightMin and y <= HeightMax then
@@ -301,7 +302,7 @@ local function startTeleportItemCycle()
 						end
 					end
 				end
-				if accessible then table.insert(accessibleItems, chest) end
+				if accessible then table.insert(accessibleItems, item) end
 			end
 
 			-- Телепортируемся к случайному предмету
@@ -323,13 +324,13 @@ local function startTeleportItemCycle()
 end
 
 local function stopTeleportChestCycle()
-	teleporting = false
+	teleportingChest = false
 	startChestButton.Visible = true
 	stopChestButton.Visible = false
 end
 
 local function stopTeleportItemCycle()
-	teleporting = false
+	teleportingItem = false
 	startItemButton.Visible = true
 	stopItemButton.Visible = false
 end
