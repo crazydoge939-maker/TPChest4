@@ -13,6 +13,7 @@ local HeightMax = 250
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
@@ -294,7 +295,7 @@ local function startTeleportItemCycle()
 			for _, item in pairs(items) do
 				local accessible = false
 				for _, part in pairs(item:GetChildren()) do
-					if part:IsA("BasePart") then
+					if part:IsA("Part") then
 						local y = part.Position.Y
 						if y >= HeightMin and y <= HeightMax then
 							accessible = true
@@ -309,7 +310,7 @@ local function startTeleportItemCycle()
 			if #accessibleItems > 0 then
 				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
 				for _, part in pairs(selectedItem:GetChildren()) do
-					if part:IsA("BasePart") then
+					if part:IsA("Part") then
 						local y = part.Position.Y
 						if y >= HeightMin and y <= HeightMax then
 							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
