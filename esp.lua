@@ -153,7 +153,7 @@ local function findAccessibleChest(chests)
 		for _, part in pairs(chest:GetChildren()) do
 			if part:IsA("BasePart") then
 				local y = part.Position.Y
-				if y >= 114 and y <= 200 then
+				if y >= 113 and y <= 200 then
 					accessible = true
 					break
 				end
@@ -182,7 +182,7 @@ local function startTeleportCycle()
 				for _, part in pairs(selectedChest:GetChildren()) do
 					if part:IsA("BasePart") then
 						local y = part.Position.Y
-						if y >= 114 and y <= 200 then
+						if y >= 113 and y <= 200 then
 							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
 							break
 						end
