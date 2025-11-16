@@ -154,7 +154,7 @@ coordsLabel.Parent = panel
 -- Обновление координат
 runService.RenderStepped:Connect(function()
 	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                     [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
 end)
 
 -- Общие функции для поиска объектов
