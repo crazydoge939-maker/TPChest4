@@ -13,7 +13,6 @@ local HeightMax = 250
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
-screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
