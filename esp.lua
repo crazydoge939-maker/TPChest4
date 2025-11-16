@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -57,21 +56,21 @@ runService.RenderStepped:Connect(function()
 	end
 end)
 
--- Добавляем заголовок
+-- Заголовок
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.BorderSizePixel = 0
-title.Text = "Телепорт к сундокам"
+title.Text = "Телепорт к сундокам и предметам"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Создаем кнопку для запуска
+-- Кнопки
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0.8, 0, 0, 40)
-startButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+startButton.Position = UDim2.new(0.1, 0, 0.5, 10)
 startButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startButton.BorderSizePixel = 2
 startButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -81,10 +80,9 @@ startButton.Text = "Начать телепорт"
 startButton.TextColor3 = Color3.new(1, 1, 1)
 startButton.Parent = panel
 
--- Создаем кнопку для остановки
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+stopButton.Position = UDim2.new(0.1, 0, 0.5, 10)
 stopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopButton.BorderSizePixel = 2
 stopButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -95,19 +93,17 @@ stopButton.TextColor3 = Color3.new(1, 1, 1)
 stopButton.Parent = panel
 stopButton.Visible = false
 
--- Создаем метку для количества сундуков
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
 chestCountLabel.Position = UDim2.new(0, 10, 0, 50)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 chestCountLabel.BorderSizePixel = 0
-chestCountLabel.Text = "Всего сундуков: 0"
+chestCountLabel.Text = "Всего объектов: 0"
 chestCountLabel.Font = Enum.Font.SourceSans
 chestCountLabel.TextSize = 16
 chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
 chestCountLabel.Parent = panel
 
--- Создаем метку для координат игрока
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
 coordsLabel.Position = UDim2.new(0, 10, 0, 160)
@@ -125,86 +121,28 @@ runService.RenderStepped:Connect(function()
 	coordsLabel.Text = string.format("Координаты: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z)
 end)
 
--- Функции поиска сундуков
-local function getAllChests()
-	local chests = {}
+-- Общие функции для поиска объектов
+local function getAllObjectsByNames(names)
+	local objects = {}
 	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and model.Name == "chests" then
+		if model:IsA("Model") and table.find(names, model.Name) then
 			for _, child in pairs(model:GetChildren()) do
 				if child:IsA("BasePart") then
-					table.insert(chests, child)
+					table.insert(objects, child)
 				end
 			end
 		end
 	end
-	return chests
+	return objects
 end
 
-local function updateChestCount()
-	local chests = getAllChests()
-	local count = #chests
-	chestCountLabel.Text = "Всего сундуков: " .. tostring(count)
+local function updateObjectCount()
+	local chests = getAllObjectsByNames({"chests"})
+	local items = getAllObjectsByNames({"other"})
+	local totalCount = #chests + #items
+	chestCountLabel.Text = "Всего объектов: " .. tostring(totalCount)
 end
 
-local function findAccessibleChest(chests)
-	local accessibleChests = {}
-	for _, chest in pairs(chests) do
-		local accessible = false
-		for _, part in pairs(chest:GetChildren()) do
-			if part:IsA("BasePart") then
-				local y = part.Position.Y
-				if y >= 113 and y <= 200 then
-					accessible = true
-					break
-				end
-			end
-		end
-		if accessible then
-			table.insert(accessibleChests, chest)
-		end
-	end
-	return accessibleChests
-end
-
-local teleporting = false
-local function startTeleportCycle()
-	if teleporting then return end
-	teleporting = true
-	startButton.Visible = false
-	stopButton.Visible = true
-
-	local function cycle()
-		while teleporting do
-			local chests = getAllChests()
-			local accessibleChests = findAccessibleChest(chests)
-			if #accessibleChests > 0 then
-				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= 113 and y <= 200 then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(0.1)
-		end
-	end
-	coroutine.wrap(cycle)()
-end
-
-local function stopTeleportCycle()
-	teleporting = false
-	startButton.Visible = true
-	stopButton.Visible = false
-end
-
-startButton.MouseButton1Click:Connect(startTeleportCycle)
-stopButton.MouseButton1Click:Connect(stopTeleportCycle)
-
--- Добавляем подсветку сундуков
 local activeHighlights = {}
 
 local function clearHighlights()
@@ -216,12 +154,10 @@ local function clearHighlights()
 	activeHighlights = {}
 end
 
-local function addHighlightToChests()
-	-- Сначала очищаем старые подсветки
+local function addHighlightToObjects(names)
 	clearHighlights()
-	-- Затем добавляем новые подсветки для всех сундуков
 	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and model.Name == "chests" then
+		if model:IsA("Model") and table.find(names, model.Name) then
 			for _, part in pairs(model:GetChildren()) do
 				if part:IsA("BasePart") then
 					local highlight = Instance.new("Highlight")
@@ -238,13 +174,86 @@ local function addHighlightToChests()
 	end
 end
 
--- Обновляем счетчик каждые 5 секунд
+local teleporting = false
+
+local function startTeleportCycle()
+	if teleporting then return end
+	teleporting = true
+	startButton.Visible = false
+	stopButton.Visible = true
+
+	coroutine.wrap(function()
+		while teleporting do
+			local chests = getAllObjectsByNames({"chests"})
+			local items = getAllObjectsByNames({"other"})
+			local accessibleChests = {}
+			local accessibleItems = {}
+
+			-- Проверка сундуков
+			for _, chest in pairs(chests) do
+				local accessible = false
+				for _, part in pairs(chest:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= 113 and y <= 200 then
+							accessible = true
+							break
+						end
+					end
+				end
+				if accessible then table.insert(accessibleChests, chest) end
+			end
+
+			-- Проверка предметов
+			for _, item in pairs(items) do
+				local accessible = false
+				for _, part in pairs(item:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= 113 and y <= 200 then
+							accessible = true
+							break
+						end
+					end
+				end
+				if accessible then table.insert(accessibleItems, item) end
+			end
+
+			-- Телепортируемся к случайному сундуку
+			if #accessibleChests > 0 then
+				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
+				for _, part in pairs(selectedChest:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= 113 and y <= 200 then
+							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+							break
+						end
+					end
+				end
+			end
+			wait(0.1)
+		end
+	end)()
+end
+
+local function stopTeleportCycle()
+	teleporting = false
+	startButton.Visible = true
+	stopButton.Visible = false
+end
+
+startButton.MouseButton1Click:Connect(startTeleportCycle)
+stopButton.MouseButton1Click:Connect(stopTeleportCycle)
+
+-- Обновление данных и подсветки каждые 5 секунд
 spawn(function()
 	while true do
-		updateChestCount()
-		addHighlightToChests()
-		wait(0.1)
+		updateObjectCount()
+		addHighlightToObjects({"chests", "other"})
+		wait(5)
 	end
 end)
 
-addHighlightToChests()
+-- Изначальный вызов подсветки
+addHighlightToObjects({"chests", "other"})
