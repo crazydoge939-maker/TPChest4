@@ -17,7 +17,7 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 250)
+panel.Size = UDim2.new(0, 200, 0, 270)
 panel.Position = UDim2.new(0.5, -150, 0.5, -100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
@@ -64,7 +64,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.BorderSizePixel = 0
-title.Text = "Телепорт к сундокам и предметам"
+title.Text = "AUTO TP"
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.TextScaled = true
@@ -128,20 +128,32 @@ stopItemButton.Parent = panel
 stopItemButton.Visible = false
 
 local chestCountLabel = Instance.new("TextLabel")
-chestCountLabel.Size = UDim2.new(1, -20, 0, 30)
+chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
 chestCountLabel.Position = UDim2.new(0, 10, 0, 40)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 chestCountLabel.BorderSizePixel = 0
-chestCountLabel.Text = "Всего объектов: 0"
+chestCountLabel.Text = "Всего сундуков [0]"
 chestCountLabel.Font = Enum.Font.SourceSans
 chestCountLabel.TextSize = 16
 chestCountLabel.TextScaled = true
 chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
 chestCountLabel.Parent = panel
 
+local itemCountLabel = Instance.new("TextLabel")
+itemCountLabel.Size = UDim2.new(0, 80, 0, 80)
+itemCountLabel.Position = UDim2.new(0, 110, 0, 40)
+itemCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+itemCountLabel.BorderSizePixel = 0
+itemCountLabel.Text = "Всего предметов [0]"
+itemCountLabel.Font = Enum.Font.SourceSans
+itemCountLabel.TextSize = 16
+itemCountLabel.TextScaled = true
+itemCountLabel.TextColor3 = Color3.new(1, 1, 1)
+itemCountLabel.Parent = panel
+
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 80)
+coordsLabel.Position = UDim2.new(0, 10, 0, 230)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "Координаты [X=0, Y=0, Z=0]"
@@ -172,11 +184,16 @@ local function getAllObjectsByNames(names)
 	return objects
 end
 
-local function updateObjectCount()
+local function updateChestCount()
 	local chests = getAllObjectsByNames({"chests"})
+	local totalChestCount = #chests
+	chestCountLabel.Text = "Сундуков [" .. tostring(totalChestCount) .. "]"
+end
+
+local function updateItemCount()
 	local items = getAllObjectsByNames({"other"})
-	local totalCount = #chests + #items
-	chestCountLabel.Text = "Всего объектов: " .. tostring(totalCount)
+	local totalItemCount = #items
+	itemCountLabel.Text = "Предметов [" .. tostring(totalItemCount) .. "]"
 end
 
 local activeHighlights = {}
@@ -326,7 +343,8 @@ stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
 -- Обновляем и подсвечиваем каждые 5 секунд
 spawn(function()
 	while true do
-		updateObjectCount()
+		updateChestCount()
+		updateItemCount()
 		addHighlightToObjects({"chests", "other"})
 		wait(0.1)
 	end
