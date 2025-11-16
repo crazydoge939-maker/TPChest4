@@ -1,10 +1,11 @@
+
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
 local runService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local workspace = game.Workspace
 
 local HeightMin = 113
@@ -18,7 +19,7 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 -- Создаем основную панель
 local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0, 200, 0, 270)
-panel.Position = UDim2.new(0.5, -150, 0.5, -100)
+panel.Position = UDim2.new(0.5, -100, 0.5, -135)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
@@ -29,34 +30,34 @@ local dragging = false
 local dragInput, dragStart, startPos
 
 panel.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = panel.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
 
 panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-		dragInput = input
-	end
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        dragInput = input
+    end
 end)
 
 runService.RenderStepped:Connect(function()
-	if dragging and dragInput then
-		local delta = dragInput.Position - dragStart
-		panel.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
+    if dragging and dragInput then
+        local delta = dragInput.Position - dragStart
+        panel.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
 end)
 
 -- Заголовок
@@ -71,10 +72,10 @@ title.TextScaled = true
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Кнопки [Сундуки]
+-- Кнопки сундуков
 local startChestButton = Instance.new("TextButton")
 startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0, 20, 0, 130)
+startChestButton.Position = UDim2.new(0.1, 0, 0.5, -50)
 startChestButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startChestButton.BorderSizePixel = 2
 startChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -87,7 +88,7 @@ startChestButton.Parent = panel
 
 local stopChestButton = Instance.new("TextButton")
 stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0, 20, 0, 130)
+stopChestButton.Position = UDim2.new(0.1, 0, 0.5, 10)
 stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopChestButton.BorderSizePixel = 2
 stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -99,10 +100,10 @@ stopChestButton.TextColor3 = Color3.new(1, 1, 1)
 stopChestButton.Parent = panel
 stopChestButton.Visible = false
 
--- Кнопки [Предметы]
+-- Кнопки предметов
 local startItemButton = Instance.new("TextButton")
 startItemButton.Size = UDim2.new(0.8, 0, 0, 40)
-startItemButton.Position = UDim2.new(0, 20, 0, 180)
+startItemButton.Position = UDim2.new(0.1, 0, 0.5, 10)
 startItemButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
 startItemButton.BorderSizePixel = 2
 startItemButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -115,7 +116,7 @@ startItemButton.Parent = panel
 
 local stopItemButton = Instance.new("TextButton")
 stopItemButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopItemButton.Position = UDim2.new(0, 20, 0, 180)
+stopItemButton.Position = UDim2.new(0.1, 0, 0.5, 60)
 stopItemButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopItemButton.BorderSizePixel = 2
 stopItemButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -165,191 +166,190 @@ coordsLabel.Parent = panel
 
 -- Обновление координат
 runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+    local pos = humanoidRootPart.Position
+    coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
 end)
 
 -- Общие функции для поиска объектов
 local function getAllObjectsByNames(names)
-	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") then
-					table.insert(objects, child)
-				end
-			end
-		end
-	end
-	return objects
+    local objects = {}
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and table.find(names, model.Name) then
+            for _, child in pairs(model:GetChildren()) do
+                if child:IsA("BasePart") then
+                    table.insert(objects, child)
+                end
+            end
+        end
+    end
+    return objects
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests"})
-	local totalChestCount = #chests
-	chestCountLabel.Text = "Сундуков [" .. tostring(totalChestCount) .. "]"
+    local chests = getAllObjectsByNames({"chests"})
+    chestCountLabel.Text = "Сундуков [" .. tostring(#chests) .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other"})
-	local totalItemCount = #items
-	itemCountLabel.Text = "Предметов [" .. tostring(totalItemCount) .. "]"
+    local items = getAllObjectsByNames({"other"})
+    itemCountLabel.Text = "Предметов [" .. tostring(#items) .. "]"
 end
 
 local activeHighlights = {}
 
 local function clearHighlights()
-	for _, highlight in ipairs(activeHighlights) do
-		if highlight and highlight.Parent then
-			highlight:Destroy()
-		end
-	end
-	activeHighlights = {}
+    for _, highlight in ipairs(activeHighlights) do
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end
+    activeHighlights = {}
 end
 
 local function addHighlightToObjects(names)
-	clearHighlights()
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, part in pairs(model:GetChildren()) do
-				if part:IsA("BasePart") then
-					local highlight = Instance.new("Highlight")
-					highlight.Adornee = part
-					if model.Name == "other" then
-						highlight.FillColor = Color3.new(0.5, 0, 0.5) -- фиолетовый
-						highlight.OutlineColor = Color3.new(1, 0, 1)
-					else
-						highlight.FillColor = Color3.new(0, 0.490196, 0) -- зеленый
-						highlight.OutlineColor = Color3.new(0, 1, 0)
-					end
-					highlight.FillTransparency = 0.2
-					highlight.OutlineTransparency = 0
-					highlight.Parent = part
-					table.insert(activeHighlights, highlight)
-				end
-			end
-		end
-	end
+    clearHighlights()
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and table.find(names, model.Name) then
+            for _, part in pairs(model:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Adornee = part
+                    if model.Name == "other" then
+                        highlight.FillColor = Color3.new(0.5, 0, 0.5) -- фиолетовый
+                        highlight.OutlineColor = Color3.new(1, 0, 1)
+                    else
+                        highlight.FillColor = Color3.new(0, 0.490196, 0) -- зеленый
+                        highlight.OutlineColor = Color3.new(0, 1, 0)
+                    end
+                    highlight.FillTransparency = 0.2
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = part
+                    table.insert(activeHighlights, highlight)
+                end
+            end
+        end
+    end
 end
 
-local teleportingChest = false
-local teleportingItem = false
+local teleportingChests = false
+local teleportingItems = false
 
 local function startTeleportChestCycle()
-	if teleportingChest then return end
-	teleportingChest = true
-	startChestButton.Visible = false
-	stopChestButton.Visible = true
+    if teleportingChests then return end
+    teleportingChests = true
+    startChestButton.Visible = false
+    stopChestButton.Visible = true
 
-	coroutine.wrap(function()
-		while teleportingChest do
-			local chests = getAllObjectsByNames({"chests"})
-			local accessibleChests = {}
+    coroutine.wrap(function()
+        while teleportingChests do
+            local chests = getAllObjectsByNames({"chests"})
+            local accessibleChests = {}
 
-			-- Проверка сундуков
-			for _, chest in pairs(chests) do
-				local accessible = false
-				for _, part in pairs(chest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
-						end
-					end
-				end
-				if accessible then table.insert(accessibleChests, chest) end
-			end
+            -- Проверка сундуков
+            for _, chest in pairs(chests) do
+                local accessible = false
+                for _, part in pairs(chest:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local y = part.Position.Y
+                        if y >= HeightMin and y <= HeightMax then
+                            accessible = true
+                            break
+                        end
+                    end
+                end
+                if accessible then table.insert(accessibleChests, chest) end
+            end
 
-			-- Телепортируемся к случайному сундуку
-			if #accessibleChests > 0 then
-				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(0.1)
-		end
-	end)()
-end
-
-local function startTeleportItemCycle()
-	if teleportingItem then return end
-	teleportingItem = true
-	startItemButton.Visible = false
-	stopItemButton.Visible = true
-
-	coroutine.wrap(function()
-		while teleportingItem do
-			local items = getAllObjectsByNames({"other"})
-			local accessibleItems = {}
-
-			-- Проверка сундуков
-			for _, item in pairs(items) do
-				local accessible = false
-				for _, part in pairs(item:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
-						end
-					end
-				end
-				if accessible then table.insert(accessibleItems, item) end
-			end
-
-			-- Телепортируемся к случайному предмету
-			if #accessibleItems > 0 then
-				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
-				for _, part in pairs(selectedItem:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(0.1)
-		end
-	end)()
+            -- Телепортируемся к случайному сундуку
+            if #accessibleChests > 0 then
+                local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
+                for _, part in pairs(selectedChest:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local y = part.Position.Y
+                        if y >= HeightMin and y <= HeightMax then
+                            humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+                            break
+                        end
+                    end
+                end
+            end
+            wait(0.1)
+        end
+    end)()
 end
 
 local function stopTeleportChestCycle()
-	teleportingChest = false
-	startChestButton.Visible = true
-	stopChestButton.Visible = false
+    teleportingChests = false
+    startChestButton.Visible = true
+    stopChestButton.Visible = false
+end
+
+local function startTeleportItemCycle()
+    if teleportingItems then return end
+    teleportingItems = true
+    startItemButton.Visible = false
+    stopItemButton.Visible = true
+
+    coroutine.wrap(function()
+        while teleportingItems do
+            local items = getAllObjectsByNames({"other"})
+            local accessibleItems = {}
+
+            -- Проверка предметов
+            for _, item in pairs(items) do
+                local accessible = false
+                for _, part in pairs(item:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local y = part.Position.Y
+                        if y >= HeightMin and y <= HeightMax then
+                            accessible = true
+                            break
+                        end
+                    end
+                end
+                if accessible then table.insert(accessibleItems, item) end
+            end
+
+            -- Телепортируемся к случайному предмету
+            if #accessibleItems > 0 then
+                local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
+                for _, part in pairs(selectedItem:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local y = part.Position.Y
+                        if y >= HeightMin and y <= HeightMax then
+                            humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+                            break
+                        end
+                    end
+                end
+            end
+            wait(0.1)
+        end
+    end)()
 end
 
 local function stopTeleportItemCycle()
-	teleportingItem = false
-	startItemButton.Visible = true
-	stopItemButton.Visible = false
+    teleportingItems = false
+    startItemButton.Visible = true
+    stopItemButton.Visible = false
 end
 
-startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
-stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
+-- Назначение кнопок
+startChestButton.MouseButton1Click = startTeleportChestCycle
+stopChestButton.MouseButton1Click = stopTeleportChestCycle
 
-startItemButton.MouseButton1Click:Connect(startTeleportItemCycle)
-stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
+startItemButton.MouseButton1Click = startTeleportItemCycle
+stopItemButton.MouseButton1Click = stopTeleportItemCycle
 
--- Обновляем и подсвечиваем каждые 5 секунд
+-- Обновление и подсветка каждые 0.1 сек
 spawn(function()
-	while true do
-		updateChestCount()
-		updateItemCount()
-		addHighlightToObjects({"chests", "other"})
-		wait(0.1)
-	end
+    while true do
+        updateChestCount()
+        updateItemCount()
+        addHighlightToObjects({"chests", "other"})
+        wait(0.1)
+    end
 end)
 
--- Изначальная подсветка
+-- Изначально подсветка
 addHighlightToObjects({"chests", "other"})
