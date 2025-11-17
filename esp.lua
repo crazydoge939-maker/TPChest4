@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -435,10 +436,31 @@ end)
 addHighlightToObjects({"chests", "other"})
 
 -- Обновление линий каждый фрейм
+local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
-	local chests = getAllObjectsByNames({"chests"})
-	local items = getAllObjectsByNames({"other"})
+	local now = tick()
+	if now - lastUpdateTime >= 0.2 then -- обновлять 5 раз в секунду
+		local chests = getAllObjectsByNames({"chests"})
+		local items = getAllObjectsByNames({"other"})
+		updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
+		updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
+		lastUpdateTime = now
+	end
+end)
 
-	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
-	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
+local chestsCache = {}
+local itemsCache = {}
+local cacheUpdateInterval = 5 -- секунд
+local lastCacheUpdate = 0
+
+game:GetService("RunService").Heartbeat:Connect(function()
+	local now = tick()
+	if now - lastCacheUpdate >= cacheUpdateInterval then
+		chestsCache = getAllObjectsByNames({"chests"})
+		itemsCache = getAllObjectsByNames({"other"})
+		lastCacheUpdate = now
+	end
+	-- В основном цикле обновления линий используйте кешированные данные
+	updateLines(chestsCache, linesToChests, Color3.new(0.333333, 1, 0))
+	updateLines(itemsCache, linesToOther, Color3.new(0.333333, 0, 1))
 end)
