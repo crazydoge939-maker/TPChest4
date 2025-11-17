@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -195,14 +194,10 @@ local function updateLines(targets, linesTable, color)
 	-- Если целей нет, удаляем все линии
 	if #targets == 0 then
 		for _, lineData in ipairs(linesTable) do
-			if lineData and lineData.beam then
-				lineData.beam:Destroy()
-			end
-			if lineData and lineData.attachmentTarget then
-				lineData.attachmentTarget:Destroy()
-			end
-			if lineData and lineData.attachmentPlayer then
-				lineData.attachmentPlayer:Destroy()
+			if lineData then
+				if lineData.beam then lineData.beam:Destroy() end
+				if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
+				if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
 			end
 		end
 		table.clear(linesTable)
@@ -213,7 +208,7 @@ local function updateLines(targets, linesTable, color)
 	for i, target in ipairs(targets) do
 		local lineData = linesTable[i]
 		if not lineData then
-			-- Создаем новую линию
+			-- Создаем новые объекты
 			local attachmentPlayer = createAttachment(humanoidRootPart)
 			local attachmentTarget = createAttachment(target)
 			local beam = createBeam(attachmentPlayer, attachmentTarget, color)
@@ -222,29 +217,27 @@ local function updateLines(targets, linesTable, color)
 				attachmentPlayer = attachmentPlayer,
 				attachmentTarget = attachmentTarget
 			}
+			lineData = linesTable[i]
 		end
 		-- Обновляем позиции
-		local data = linesTable[i]
-		if data then
-			data.attachmentPlayer.WorldPosition = humanoidRootPart.Position
-			data.attachmentTarget.WorldPosition = target.Position
-			if data.beam then
-				data.beam.Enabled = true
-			end
+		if lineData.attachmentPlayer then
+			lineData.attachmentPlayer.WorldPosition = humanoidRootPart.Position
+		end
+		if lineData.attachmentTarget then
+			lineData.attachmentTarget.WorldPosition = target.Position
+		end
+		if lineData.beam then
+			lineData.beam.Enabled = true
 		end
 	end
 
-	-- Удаляем лишние линии, если целей стало меньше
+	-- Удаляем лишние линии
 	while #linesTable > #targets do
 		local lineData = table.remove(linesTable)
-		if lineData and lineData.beam then
-			lineData.beam:Destroy()
-		end
-		if lineData and lineData.attachmentTarget then
-			lineData.attachmentTarget:Destroy()
-		end
-		if lineData and lineData.attachmentPlayer then
-			lineData.attachmentPlayer:Destroy()
+		if lineData then
+			if lineData.beam then lineData.beam:Destroy() end
+			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
+			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
 		end
 	end
 end
@@ -446,6 +439,6 @@ runService.RenderStepped:Connect(function()
 	local chests = getAllObjectsByNames({"chests"})
 	local items = getAllObjectsByNames({"other"})
 
-	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
-	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
+	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
+	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
 end)
