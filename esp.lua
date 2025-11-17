@@ -449,7 +449,7 @@ end)
 
 local chestsCache = {}
 local itemsCache = {}
-local cacheUpdateInterval = 10 -- секунд
+local cacheUpdateInterval = 20 -- секунд
 local lastCacheUpdate = 0
 
 game:GetService("RunService").Heartbeat:Connect(function()
