@@ -18,7 +18,7 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 270)
+panel.Size = UDim2.new(0, 200, 0, 220)
 panel.Position = UDim2.new(0.5, -150, 0.5, -100)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
@@ -101,32 +101,32 @@ stopChestButton.Parent = panel
 stopChestButton.Visible = false
 
 -- Кнопки [Предметы]
-local startItemButton = Instance.new("TextButton")
-startItemButton.Size = UDim2.new(0.8, 0, 0, 40)
-startItemButton.Position = UDim2.new(0, 20, 0, 180)
-startItemButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-startItemButton.BorderSizePixel = 2
-startItemButton.BorderColor3 = Color3.new(1, 1, 1)
-startItemButton.Font = Enum.Font.SourceSansBold
-startItemButton.TextSize = 16
-startItemButton.TextScaled = true
-startItemButton.Text = "Старт [Предметы]"
-startItemButton.TextColor3 = Color3.new(1, 1, 1)
-startItemButton.Parent = panel
+--local startItemButton = Instance.new("TextButton")
+--startItemButton.Size = UDim2.new(0.8, 0, 0, 40)
+--startItemButton.Position = UDim2.new(0, 20, 0, 180)
+--startItemButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+--startItemButton.BorderSizePixel = 2
+--startItemButton.BorderColor3 = Color3.new(1, 1, 1)
+--startItemButton.Font = Enum.Font.SourceSansBold
+--startItemButton.TextSize = 16
+--startItemButton.TextScaled = true
+--startItemButton.Text = "Старт [Предметы]"
+--startItemButton.TextColor3 = Color3.new(1, 1, 1)
+--startItemButton.Parent = panel
 
-local stopItemButton = Instance.new("TextButton")
-stopItemButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopItemButton.Position = UDim2.new(0, 20, 0, 180)
-stopItemButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-stopItemButton.BorderSizePixel = 2
-stopItemButton.BorderColor3 = Color3.new(1, 1, 1)
-stopItemButton.Font = Enum.Font.SourceSansBold
-stopItemButton.TextSize = 16
-stopItemButton.TextScaled = true
-stopItemButton.Text = "Стоп [Предметы]"
-stopItemButton.TextColor3 = Color3.new(1, 1, 1)
-stopItemButton.Parent = panel
-stopItemButton.Visible = false
+--local stopItemButton = Instance.new("TextButton")
+--stopItemButton.Size = UDim2.new(0.8, 0, 0, 40)
+--stopItemButton.Position = UDim2.new(0, 20, 0, 180)
+--stopItemButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+--stopItemButton.BorderSizePixel = 2
+--stopItemButton.BorderColor3 = Color3.new(1, 1, 1)
+--stopItemButton.Font = Enum.Font.SourceSansBold
+--stopItemButton.TextSize = 16
+--stopItemButton.TextScaled = true
+--stopItemButton.Text = "Стоп [Предметы]"
+--stopItemButton.TextColor3 = Color3.new(1, 1, 1)
+--stopItemButton.Parent = panel
+--stopItemButton.Visible = false
 
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
@@ -154,7 +154,7 @@ itemCountLabel.Parent = panel
 
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 230)
+coordsLabel.Position = UDim2.new(0, 10, 0, 180)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "Координаты [X=0, Y=0, Z=0]"
@@ -163,6 +163,63 @@ coordsLabel.TextSize = 14
 coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
+
+
+-- Создание Линии
+-- Таблицы для линий
+local linesToChests = {}
+local linesToOther = {}
+
+local function createAttachment(parent)
+	local att = Instance.new("Attachment")
+	att.Parent = parent
+	return att
+end
+
+local function createBeam(attachment0, attachment1, color)
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = attachment0
+	beam.Attachment1 = attachment1
+	beam.Color = ColorSequence.new(color)
+	beam.Width0 = 0.2
+	beam.Width1 = 0.2
+	beam.Parent = attachment0.Parent -- или в workspace
+	beam.FaceCamera = true
+	return beam
+end
+
+local linesToChests = {}
+local linesToOther = {}
+
+local function updateLines(targets, linesTable, color)
+	-- Создаем или обновляем линии
+	for i, target in ipairs(targets) do
+		if not linesTable[i] then
+			local attachmentPlayer = createAttachment(humanoidRootPart)
+			local attachmentTarget = createAttachment(target)
+			local beam = createBeam(attachmentPlayer, attachmentTarget, color)
+			linesTable[i] = {
+				beam = beam,
+				attachmentPlayer = attachmentPlayer,
+				attachmentTarget = attachmentTarget
+			}
+		end
+		-- Обновляем позиции
+		local lineData = linesTable[i]
+		lineData.attachmentPlayer.WorldPosition = humanoidRootPart.Position
+		lineData.attachmentTarget.WorldPosition = target.Position
+		lineData.beam.Enabled = true
+	end
+
+	-- Удаляем лишние линии
+	while #linesTable > #targets do
+		local lineData = table.remove(linesTable)
+		lineData.beam:Destroy()
+		lineData.attachmentTarget:Destroy()
+		lineData.attachmentPlayer:Destroy()
+	end
+end
+
 
 -- Обновление координат
 runService.RenderStepped:Connect(function()
@@ -280,49 +337,49 @@ local function startTeleportChestCycle()
 	end)()
 end
 
-local function startTeleportItemCycle()
-	if teleportingItem then return end
-	teleportingItem = true
-	startItemButton.Visible = false
-	stopItemButton.Visible = true
+--local function startTeleportItemCycle()
+--	if teleportingItem then return end
+--	teleportingItem = true
+--	startItemButton.Visible = false
+--	stopItemButton.Visible = true
 
-	coroutine.wrap(function()
-		while teleportingItem do
-			local items = getAllObjectsByNames({"other"})
-			local accessibleItems = {}
+--	coroutine.wrap(function()
+--		while teleportingItem do
+--			local items = getAllObjectsByNames({"other"})
+--			local accessibleItems = {}
 
-			-- Проверка сундуков
-			for _, item in pairs(items) do
-				local accessible = false
-				for _, part in pairs(item:GetChildren()) do
-					if part:IsA("Part") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
-						end
-					end
-				end
-				if accessible then table.insert(accessibleItems, item) end
-			end
+--			-- Проверка сундуков
+--			for _, item in pairs(items) do
+--				local accessible = false
+--				for _, part in pairs(item:GetChildren()) do
+--					if part:IsA("Part") then
+--						local y = part.Position.Y
+--						if y >= HeightMin and y <= HeightMax then
+--							accessible = true
+--							break
+--						end
+--					end
+--				end
+--				if accessible then table.insert(accessibleItems, item) end
+--			end
 
-			-- Телепортируемся к случайному предмету
-			if #accessibleItems > 0 then
-				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
-				for _, part in pairs(selectedItem:GetChildren()) do
-					if part:IsA("Part") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(0.1)
-		end
-	end)()
-end
+--			-- Телепортируемся к случайному предмету
+--			if #accessibleItems > 0 then
+--				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
+--				for _, part in pairs(selectedItem:GetChildren()) do
+--					if part:IsA("Part") then
+--						local y = part.Position.Y
+--						if y >= HeightMin and y <= HeightMax then
+--							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+--							break
+--						end
+--					end
+--				end
+--			end
+--			wait(0.1)
+--		end
+--	end)()
+--end
 
 local function stopTeleportChestCycle()
 	teleportingChest = false
@@ -330,17 +387,17 @@ local function stopTeleportChestCycle()
 	stopChestButton.Visible = false
 end
 
-local function stopTeleportItemCycle()
-	teleportingItem = false
-	startItemButton.Visible = true
-	stopItemButton.Visible = false
-end
+--local function stopTeleportItemCycle()
+--	teleportingItem = false
+--	startItemButton.Visible = true
+--	stopItemButton.Visible = false
+--end
 
 startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
 stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
 
-startItemButton.MouseButton1Click:Connect(startTeleportItemCycle)
-stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
+--startItemButton.MouseButton1Click:Connect(startTeleportItemCycle)
+--stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
 
 -- Обновляем и подсвечиваем каждые 5 секунд
 spawn(function()
@@ -354,3 +411,12 @@ end)
 
 -- Изначальная подсветка
 addHighlightToObjects({"chests", "other"})
+
+-- Обновление линий каждый фрейм
+runService.RenderStepped:Connect(function()
+	local chests = getAllObjectsByNames({"chests"})
+	local items = getAllObjectsByNames({"other"})
+
+	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
+	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
+end)
