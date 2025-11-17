@@ -8,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local workspace = game.Workspace
 
 local HeightMin = 113
-local HeightMax = 250
+local HeightMax = 210
 
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
