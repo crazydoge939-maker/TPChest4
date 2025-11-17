@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -410,11 +411,12 @@ end)
 
 -- Изначальная подсветка
 addHighlightToObjects({"chests", "other"})
-	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
-	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
 
 -- Обновление линий каждый фрейм
 runService.RenderStepped:Connect(function()
 	local chests = getAllObjectsByNames({"chests"})
 	local items = getAllObjectsByNames({"other"})
+
+	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
+	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
 end)
