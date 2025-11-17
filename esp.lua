@@ -1,432 +1,413 @@
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
 
+-- Основные переменные
+local isKilling = false
+local killInterval = 5
+local lastKillTime = 0
 local runService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local workspace = game.Workspace
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-local HeightMin = 113
-local HeightMax = 210
+-- Создаем GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KillerGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
 
--- Создаем ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TeleportChestPanel"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 300, 0, 300)
+Frame.Position = UDim2.new(0, 20, 0, 20)
+Frame.BackgroundColor3 = Color3.fromRGB(40, 44, 52)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+local UIStroke = Instance.new("UICorner")
+UIStroke.CornerRadius = UDim.new(0, 12)
+UIStroke.Parent = Frame
 
--- Создаем основную панель
-local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 220)
-panel.Position = UDim2.new(0.5, -150, 0.5, -100)
-panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-panel.BorderSizePixel = 4
-panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
-panel.Parent = screenGui
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 54, 62)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 34, 42))
+}
+UIGradient.Parent = Frame
 
--- Сделать панель перетаскиваемой
-local dragging = false
-local dragInput, dragStart, startPos
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "Auto Killer"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Parent = Frame
 
-panel.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = panel.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 120, 0, 35)
+ToggleButton.Position = UDim2.new(0, 20, 0, 50)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 16
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Text = "Start Kill"
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 8)
+buttonCorner.Parent = ToggleButton
+ToggleButton.Parent = Frame
+
+local KillCountLabel = Instance.new("TextLabel")
+KillCountLabel.Size = UDim2.new(1, -40, 0, 120)
+KillCountLabel.Position = UDim2.new(0, 20, 0, 95)
+KillCountLabel.BackgroundTransparency = 1
+KillCountLabel.Text = "Жертвы:\n"
+KillCountLabel.TextWrapped = true
+KillCountLabel.TextXAlignment = Enum.TextXAlignment.Left
+KillCountLabel.TextYAlignment = Enum.TextYAlignment.Top
+KillCountLabel.Font = Enum.Font.Gotham
+KillCountLabel.TextSize = 20
+KillCountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+KillCountLabel.Parent = Frame
+
+-- Линия прогресса расположена ниже логов
+local ProgressBackground = Instance.new("Frame")
+ProgressBackground.Size = UDim2.new(1, -40, 0, 10)
+ProgressBackground.Position = UDim2.new(0, 20, 0, 270)
+ProgressBackground.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+ProgressBackground.BorderSizePixel = 0
+local progressCorner = Instance.new("UICorner")
+progressCorner.CornerRadius = UDim.new(0, 5)
+progressCorner.Parent = ProgressBackground
+ProgressBackground.Parent = Frame
+
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+ProgressBar.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+ProgressBar.BorderSizePixel = 0
+local progressInnerCorner = Instance.new("UICorner")
+progressInnerCorner.CornerRadius = UDim.new(0, 5)
+ProgressBar.Parent = ProgressBackground
+
+local function toggleKilling()
+	isKilling = not isKilling
+	if isKilling then
+		ToggleButton.Text = "Stop Kill"
+		ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		lastKillTime = tick()
+	else
+		ToggleButton.Text = "Start Kill"
+		ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
 	end
-end)
-
-panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-		dragInput = input
-	end
-end)
-
-runService.RenderStepped:Connect(function()
-	if dragging and dragInput then
-		local delta = dragInput.Position - dragStart
-		panel.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.BorderSizePixel = 0
-title.Text = "AUTO FARM"
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.TextScaled = true
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Parent = panel
-
--- Кнопки [Сундуки]
-local startChestButton = Instance.new("TextButton")
-startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0, 20, 0, 130)
-startChestButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-startChestButton.BorderSizePixel = 2
-startChestButton.BorderColor3 = Color3.new(1, 1, 1)
-startChestButton.Font = Enum.Font.SourceSansBold
-startChestButton.TextSize = 16
-startChestButton.TextScaled = true
-startChestButton.Text = "Старт [Сундуки]"
-startChestButton.TextColor3 = Color3.new(1, 1, 1)
-startChestButton.Parent = panel
-
-local stopChestButton = Instance.new("TextButton")
-stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0, 20, 0, 130)
-stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-stopChestButton.BorderSizePixel = 2
-stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
-stopChestButton.Font = Enum.Font.SourceSansBold
-stopChestButton.TextSize = 16
-stopChestButton.TextScaled = true
-stopChestButton.Text = "Стоп [Сундуки]"
-stopChestButton.TextColor3 = Color3.new(1, 1, 1)
-stopChestButton.Parent = panel
-stopChestButton.Visible = false
-
--- Кнопки [Предметы]
---local startItemButton = Instance.new("TextButton")
---startItemButton.Size = UDim2.new(0.8, 0, 0, 40)
---startItemButton.Position = UDim2.new(0, 20, 0, 180)
---startItemButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
---startItemButton.BorderSizePixel = 2
---startItemButton.BorderColor3 = Color3.new(1, 1, 1)
---startItemButton.Font = Enum.Font.SourceSansBold
---startItemButton.TextSize = 16
---startItemButton.TextScaled = true
---startItemButton.Text = "Старт [Предметы]"
---startItemButton.TextColor3 = Color3.new(1, 1, 1)
---startItemButton.Parent = panel
-
---local stopItemButton = Instance.new("TextButton")
---stopItemButton.Size = UDim2.new(0.8, 0, 0, 40)
---stopItemButton.Position = UDim2.new(0, 20, 0, 180)
---stopItemButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
---stopItemButton.BorderSizePixel = 2
---stopItemButton.BorderColor3 = Color3.new(1, 1, 1)
---stopItemButton.Font = Enum.Font.SourceSansBold
---stopItemButton.TextSize = 16
---stopItemButton.TextScaled = true
---stopItemButton.Text = "Стоп [Предметы]"
---stopItemButton.TextColor3 = Color3.new(1, 1, 1)
---stopItemButton.Parent = panel
---stopItemButton.Visible = false
-
-local chestCountLabel = Instance.new("TextLabel")
-chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 40)
-chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-chestCountLabel.BorderSizePixel = 0
-chestCountLabel.Text = "Всего сундуков [0]"
-chestCountLabel.Font = Enum.Font.SourceSans
-chestCountLabel.TextSize = 16
-chestCountLabel.TextScaled = true
-chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
-chestCountLabel.Parent = panel
-
-local itemCountLabel = Instance.new("TextLabel")
-itemCountLabel.Size = UDim2.new(0, 80, 0, 80)
-itemCountLabel.Position = UDim2.new(0, 110, 0, 40)
-itemCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-itemCountLabel.BorderSizePixel = 0
-itemCountLabel.Text = "Всего предметов [0]"
-itemCountLabel.Font = Enum.Font.SourceSans
-itemCountLabel.TextSize = 16
-itemCountLabel.TextScaled = true
-itemCountLabel.TextColor3 = Color3.new(1, 1, 1)
-itemCountLabel.Parent = panel
-
-local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 180)
-coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-coordsLabel.BorderSizePixel = 0
-coordsLabel.Text = "Координаты [X=0, Y=0, Z=0]"
-coordsLabel.Font = Enum.Font.SourceSans
-coordsLabel.TextSize = 14
-coordsLabel.TextScaled = true
-coordsLabel.TextColor3 = Color3.new(1, 1, 1)
-coordsLabel.Parent = panel
-
-
--- Создание Линии
--- Таблицы для линий
-local linesToChests = {}
-local linesToOther = {}
-
-local function createAttachment(parent)
-	local att = Instance.new("Attachment")
-	att.Parent = parent
-	return att
 end
 
-local function createBeam(attachment0, attachment1, color)
+ToggleButton.MouseButton1Click:Connect(toggleKilling)
+
+local function findHumanoids()
+	local npcs = {}
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Humanoid") and v.Parent and v.Parent:FindFirstChildOfClass("Humanoid") then
+			if not game.Players:GetPlayerFromCharacter(v.Parent) then
+				table.insert(npcs, v.Parent)
+			end
+		end
+	end
+	return npcs
+end
+
+local npcHighlights = {} -- таблица для хранения подсветки всех NPC
+
+local function updateHighlights()
+	local npcs = findHumanoids()
+	for _, npc in pairs(npcs) do
+		if npc then
+			local highlight = npcHighlights[npc]
+			if not highlight then
+				highlight = Instance.new("Highlight")
+				highlight.Name = "Highlight"
+				highlight.Adornee = npc
+				highlight.FillColor = Color3.fromRGB(85, 0, 0)
+				highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+				highlight.Parent = npc
+				npcHighlights[npc] = highlight
+			end
+			highlight.Enabled = true
+		end
+	end
+end
+
+local lineFolder = Instance.new("Folder", workspace)
+lineFolder.Name = "PlayerToNPCLines"
+
+local function createLine()
+	local attachment0 = Instance.new("Attachment")
+	local attachment1 = Instance.new("Attachment")
+
+	attachment0.Parent = workspace
+	attachment1.Parent = workspace
+
 	local beam = Instance.new("Beam")
 	beam.Attachment0 = attachment0
 	beam.Attachment1 = attachment1
-	beam.Color = ColorSequence.new(color)
+	beam.Color = ColorSequence.new(Color3.new(1, 0, 0))
 	beam.Width0 = 0.2
 	beam.Width1 = 0.2
-	beam.Parent = attachment0.Parent -- или в workspace
-	beam.FaceCamera = true
-	return beam
+	beam.Transparency = NumberSequence.new(0.5)
+	beam.Parent = lineFolder
+
+	return {
+		Beam = beam,
+		Attachment0 = attachment0,
+		Attachment1 = attachment1,
+		TargetPos0 = Vector3.new(), -- целевая позиция для Attachment0
+		TargetPos1 = Vector3.new()  -- целевая позиция для Attachment1
+	}
 end
 
-local linesToChests = {}
-local linesToOther = {}
-
-local function updateLines(targets, linesTable, color)
-	-- Если целей нет, удаляем все линии
-	if #targets == 0 then
-		for _, lineData in ipairs(linesTable) do
-			lineData.beam:Destroy()
-			lineData.attachmentTarget:Destroy()
-			lineData.attachmentPlayer:Destroy()
-		end
-		table.clear(linesTable)
-		return
-	end
-
-	-- Создаем или обновляем линии
-	for i, target in ipairs(targets) do
-		if not linesTable[i] then
-			local attachmentPlayer = createAttachment(humanoidRootPart)
-			local attachmentTarget = createAttachment(target)
-			local beam = createBeam(attachmentPlayer, attachmentTarget, color)
-			linesTable[i] = {
-				beam = beam,
-				attachmentPlayer = attachmentPlayer,
-				attachmentTarget = attachmentTarget
-			}
-		end
-		-- Обновляем позиции
-		local lineData = linesTable[i]
-		lineData.attachmentPlayer.WorldPosition = humanoidRootPart.Position
-		lineData.attachmentTarget.WorldPosition = target.Position
-		lineData.beam.Enabled = true
-	end
-
-	-- Удаляем лишние линии
-	while #linesTable > #targets do
-		local lineData = table.remove(linesTable)
-		lineData.beam:Destroy()
-		lineData.attachmentTarget:Destroy()
-		lineData.attachmentPlayer:Destroy()
-	end
+-- Функция проверки, жив ли NPC
+local function isNpcAlive(npc)
+	local humanoid = npc:FindFirstChildOfClass("Humanoid")
+	local hrp = npc:FindFirstChild("HumanoidRootPart")
+	return humanoid and humanoid.Health > 0 and hrp
 end
 
+local npcLines = {}
+local smoothingFactor = 1 -- Чем меньше, тем медленнее перемещение (плавнее)
 
--- Обновление координат
-runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
-end)
+local function updateLines()
+	local playerCharacter = LocalPlayer.Character
+	if not playerCharacter then return end
+	local hrp = playerCharacter:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	local playerPos = hrp.Position
 
--- Общие функции для поиска объектов
-local function getAllObjectsByNames(names)
-	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") then
-					table.insert(objects, child)
+	for npc, highlight in pairs(npcHighlights) do
+		if highlight.Enabled then
+			if isNpcAlive(npc) then
+				local lineData = npcLines[npc]
+				if not lineData then
+					lineData = createLine()
+					npcLines[npc] = lineData
 				end
+				-- Обновляем целевые позиции
+				lineData.TargetPos0 = playerPos
+				local npcHrp = npc:FindFirstChild("HumanoidRootPart")
+				if npcHrp then
+					lineData.TargetPos1 = npcHrp.Position
+				end
+				-- Плавное перемещение Attachment к целевым позициям
+				local currentPos0 = lineData.Attachment0.WorldPosition
+				local newPos0 = currentPos0:Lerp(lineData.TargetPos0, smoothingFactor)
+				lineData.Attachment0.WorldPosition = newPos0
+
+				local currentPos1 = lineData.Attachment1.WorldPosition
+				local newPos1 = currentPos1:Lerp(lineData.TargetPos1, smoothingFactor)
+				lineData.Attachment1.WorldPosition = newPos1
+			else
+				-- NPC умер или исчез — удаляем линию и подсветку
+				if npcLines[npc] then
+					npcLines[npc].Beam:Destroy()
+					npcLines[npc].Attachment0:Destroy()
+					npcLines[npc].Attachment1:Destroy()
+					npcLines[npc] = nil
+				end
+				if npcHighlights[npc] then
+					npcHighlights[npc].Enabled = false
+				end
+			end
+		else
+			-- подсветка отключена, удаляем линию
+			if npcLines[npc] then
+				npcLines[npc].Beam:Destroy()
+				npcLines[npc].Attachment0:Destroy()
+				npcLines[npc].Attachment1:Destroy()
+				npcLines[npc] = nil
 			end
 		end
 	end
-	return objects
-end
 
-local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests"})
-	local totalChestCount = #chests
-	chestCountLabel.Text = "Сундуков [" .. tostring(totalChestCount) .. "]"
-end
-
-local function updateItemCount()
-	local items = getAllObjectsByNames({"other"})
-	local totalItemCount = #items
-	itemCountLabel.Text = "Предметов [" .. tostring(totalItemCount) .. "]"
-end
-
-local activeHighlights = {}
-
-local function clearHighlights()
-	for _, highlight in ipairs(activeHighlights) do
-		if highlight and highlight.Parent then
-			highlight:Destroy()
-		end
-	end
-	activeHighlights = {}
-end
-
-local function addHighlightToObjects(names)
-	clearHighlights()
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, part in pairs(model:GetChildren()) do
-				if part:IsA("BasePart") then
-					local highlight = Instance.new("Highlight")
-					highlight.Adornee = part
-					if model.Name == "other" then
-						highlight.FillColor = Color3.new(0.5, 0, 0.5) -- фиолетовый
-						highlight.OutlineColor = Color3.new(1, 0, 1)
-					else
-						highlight.FillColor = Color3.new(0, 0.490196, 0) -- зеленый
-						highlight.OutlineColor = Color3.new(0, 1, 0)
-					end
-					highlight.FillTransparency = 0.2
-					highlight.OutlineTransparency = 0
-					highlight.Parent = part
-					table.insert(activeHighlights, highlight)
-				end
-			end
+	-- Удаляем линии для NPC, которых больше нет или не подсвечены
+	for npc, lineData in pairs(npcLines) do
+		if not npcHighlights[npc] or not npcHighlights[npc].Enabled then
+			lineData.Beam:Destroy()
+			lineData.Attachment0:Destroy()
+			lineData.Attachment1:Destroy()
+			npcLines[npc] = nil
 		end
 	end
 end
 
-local teleportingChest = false
-local teleportingItem = false
-
-local function startTeleportChestCycle()
-	if teleportingChest then return end
-	teleportingChest = true
-	startChestButton.Visible = false
-	stopChestButton.Visible = true
-
-	coroutine.wrap(function()
-		while teleportingChest do
-			local chests = getAllObjectsByNames({"chests"})
-			local accessibleChests = {}
-
-			-- Проверка сундуков
-			for _, chest in pairs(chests) do
-				local accessible = false
-				for _, part in pairs(chest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
-						end
-					end
-				end
-				if accessible then table.insert(accessibleChests, chest) end
-			end
-
-			-- Телепортируемся к случайному сундуку
-			if #accessibleChests > 0 then
-				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
-				end
-			end
-			wait(0.1)
-		end
-	end)()
+local function removeLine(npc)
+	local lineData = npcLines[npc]
+	if lineData then
+		lineData.Beam:Destroy()
+		lineData.Attachment0:Destroy()
+		lineData.Attachment1:Destroy()
+		npcLines[npc] = nil
+	end
 end
 
---local function startTeleportItemCycle()
---	if teleportingItem then return end
---	teleportingItem = true
---	startItemButton.Visible = false
---	stopItemButton.Visible = true
-
---	coroutine.wrap(function()
---		while teleportingItem do
---			local items = getAllObjectsByNames({"other"})
---			local accessibleItems = {}
-
---			-- Проверка сундуков
---			for _, item in pairs(items) do
---				local accessible = false
---				for _, part in pairs(item:GetChildren()) do
---					if part:IsA("Part") then
---						local y = part.Position.Y
---						if y >= HeightMin and y <= HeightMax then
---							accessible = true
---							break
---						end
---					end
---				end
---				if accessible then table.insert(accessibleItems, item) end
---			end
-
---			-- Телепортируемся к случайному предмету
---			if #accessibleItems > 0 then
---				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
---				for _, part in pairs(selectedItem:GetChildren()) do
---					if part:IsA("Part") then
---						local y = part.Position.Y
---						if y >= HeightMin and y <= HeightMax then
---							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
---							break
---						end
---					end
---				end
---			end
---			wait(0.1)
---		end
---	end)()
---end
-
-local function stopTeleportChestCycle()
-	teleportingChest = false
-	startChestButton.Visible = true
-	stopChestButton.Visible = false
-end
-
---local function stopTeleportItemCycle()
---	teleportingItem = false
---	startItemButton.Visible = true
---	stopItemButton.Visible = false
---end
-
-startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
-stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
-
---startItemButton.MouseButton1Click:Connect(startTeleportItemCycle)
---stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
-
--- Обновляем и подсвечиваем каждые 5 секунд
-spawn(function()
+-- Постоянное обновление подсветки
+coroutine.wrap(function()
 	while true do
-		updateChestCount()
-		updateItemCount()
-		addHighlightToObjects({"chests", "other"})
-		wait(0.1)
+		wait(1)
+		updateHighlights()
+		updateLines()
+	end
+end)()
+
+local killedHumanoidsCount = {}
+
+local function updateKillCount()
+	killedHumanoidsCount = {}
+	for _, npc in pairs(findHumanoids()) do
+		local name = npc.Name
+		if killedHumanoidsCount[name] then
+			killedHumanoidsCount[name] = killedHumanoidsCount[name] + 1
+		else
+			killedHumanoidsCount[name] = 1
+		end
+	end
+	local displayText = "Жертвы:\n"
+	for name, count in pairs(killedHumanoidsCount) do
+		displayText = displayText .. name
+		if count > 1 then
+			displayText = displayText .. " x" .. count
+		end
+		displayText = displayText .. "\n"
+	end
+	KillCountLabel.Text = displayText
+end
+
+coroutine.wrap(function()
+	while true do
+		wait(0.5)
+		updateKillCount()
+	end
+end)()
+
+local function killMovingHumanoids()
+	local npcs = findHumanoids()
+	for _, npc in pairs(npcs) do
+		if isNpcAlive(npc) then
+			local humanoid = npc:FindFirstChildOfClass("Humanoid")
+			local hrp = npc:FindFirstChild("HumanoidRootPart")
+			local velocity = hrp.AssemblyLinearVelocity
+			local speed = velocity.Magnitude
+			if speed > 1 then
+				local highlight = npcHighlights[npc]
+				if highlight then
+					highlight.Enabled = true
+				end
+				humanoid.Health = 0
+				-- удаляем линию сразу после убийства
+				if npcLines[npc] then
+					npcLines[npc].Beam:Destroy()
+					npcLines[npc].Attachment0:Destroy()
+					npcLines[npc].Attachment1:Destroy()
+					npcLines[npc] = nil
+				end
+			end
+		end
+	end
+end
+
+-- Основной цикл
+runService.Heartbeat:Connect(function()
+	if isKilling then
+		local currentTime = tick()
+		local elapsed = currentTime - lastKillTime
+		local progress = math.min(elapsed / killInterval, 1)
+		ProgressBar.Size = UDim2.new(progress, 0, 1, 0)
+
+		if elapsed >= killInterval then
+			killMovingHumanoids()
+			lastKillTime = currentTime
+			updateKillCount()
+		end
+	else
+		ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+	end
+
+	local playerCharacter = LocalPlayer.Character
+	if not playerCharacter then return end
+	local hrp = playerCharacter:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	local playerPos = hrp.Position
+
+	for npc, highlight in pairs(npcHighlights) do
+		if highlight.Enabled then
+			if isNpcAlive(npc) then
+				local lineData = npcLines[npc]
+				if not lineData then
+					lineData = createLine()
+					npcLines[npc] = lineData
+				end
+				-- Обновляем целевые позиции
+				lineData.TargetPos0 = playerPos
+				local npcHrp = npc:FindFirstChild("HumanoidRootPart")
+				if npcHrp then
+					lineData.TargetPos1 = npcHrp.Position
+				end
+				-- Плавное перемещение Attachment к целевым позициям
+				local currentPos0 = lineData.Attachment0.WorldPosition
+				local newPos0 = currentPos0:Lerp(lineData.TargetPos0, smoothingFactor)
+				lineData.Attachment0.WorldPosition = newPos0
+
+				local currentPos1 = lineData.Attachment1.WorldPosition
+				local newPos1 = currentPos1:Lerp(lineData.TargetPos1, smoothingFactor)
+				lineData.Attachment1.WorldPosition = newPos1
+			else
+				-- NPC умер или исчез — удаляем линию и подсветку
+				if npcLines[npc] then
+					npcLines[npc].Beam:Destroy()
+					npcLines[npc].Attachment0:Destroy()
+					npcLines[npc].Attachment1:Destroy()
+					npcLines[npc] = nil
+				end
+				if npcHighlights[npc] then
+					npcHighlights[npc].Enabled = false
+				end
+			end
+		else
+			-- подсветка отключена, удаляем линию
+			if npcLines[npc] then
+				npcLines[npc].Beam:Destroy()
+				npcLines[npc].Attachment0:Destroy()
+				npcLines[npc].Attachment1:Destroy()
+				npcLines[npc] = nil
+			end
+		end
+	end
+
+	-- Удаляем линии для NPC, которых больше нет или не подсвечены
+	for npc, lineData in pairs(npcLines) do
+		if not npcHighlights[npc] or not npcHighlights[npc].Enabled then
+			lineData.Beam:Destroy()
+			lineData.Attachment0:Destroy()
+			lineData.Attachment1:Destroy()
+			npcLines[npc] = nil
+		end
 	end
 end)
 
--- Изначальная подсветка
-addHighlightToObjects({"chests", "other"})
+-- Перетаскивание GUI
+local dragging = false
+local dragStart
+local startPos
 
--- Обновление линий каждый фрейм
-runService.RenderStepped:Connect(function()
-	local chests = getAllObjectsByNames({"chests"})
-	local items = getAllObjectsByNames({"other"})
+Frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+	end
+end)
 
-	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
-	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
+Frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+Frame.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		Frame.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
+	end
 end)
