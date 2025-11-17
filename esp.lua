@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -192,6 +191,17 @@ local linesToChests = {}
 local linesToOther = {}
 
 local function updateLines(targets, linesTable, color)
+	-- Если целей нет, удаляем все линии
+	if #targets == 0 then
+		for _, lineData in ipairs(linesTable) do
+			lineData.beam:Destroy()
+			lineData.attachmentTarget:Destroy()
+			lineData.attachmentPlayer:Destroy()
+		end
+		table.clear(linesTable)
+		return
+	end
+
 	-- Создаем или обновляем линии
 	for i, target in ipairs(targets) do
 		if not linesTable[i] then
