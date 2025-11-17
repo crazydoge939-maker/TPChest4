@@ -13,7 +13,6 @@ local HeightMax = 250
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
-screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
@@ -412,17 +411,11 @@ end)
 -- Изначальная подсветка
 addHighlightToObjects({"chests", "other"})
 
-local lineUpdateInterval = 5 -- интервал обновления линий в секундах
-local lastLineUpdateTime = 0
-
 -- Обновление линий каждый фрейм
 runService.RenderStepped:Connect(function()
-	local currentTime = tick()
-	if currentTime - lastLineUpdateTime >= lineUpdateInterval then
-		local chests = getAllObjectsByNames({"chests"})
-		local items = getAllObjectsByNames({"other"})
-		updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
-		updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
-		lastLineUpdateTime = currentTime
-	end
+	local chests = getAllObjectsByNames({"chests"})
+	local items = getAllObjectsByNames({"other"})
+
+	updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0)) -- фиолетовый для сундуков
+	updateLines(items, linesToOther, Color3.new(0.333333, 0, 1)) -- желтый (или любой другой цвет) для предметов
 end)
