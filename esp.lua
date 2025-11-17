@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -439,7 +438,7 @@ addHighlightToObjects({"chests", "other"})
 local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
-	if now - lastUpdateTime >= 0.2 then -- обновлять 5 раз в секунду
+	if now - lastUpdateTime >= 1 then -- обновлять 5 раз в секунду
 		local chests = getAllObjectsByNames({"chests"})
 		local items = getAllObjectsByNames({"other"})
 		updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
@@ -450,7 +449,7 @@ end)
 
 local chestsCache = {}
 local itemsCache = {}
-local cacheUpdateInterval = 5 -- секунд
+local cacheUpdateInterval = 10 -- секунд
 local lastCacheUpdate = 0
 
 game:GetService("RunService").Heartbeat:Connect(function()
