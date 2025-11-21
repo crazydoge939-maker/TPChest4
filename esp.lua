@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -296,11 +297,11 @@ local function addHighlightToObjects(names)
 					local highlight = Instance.new("Highlight")
 					highlight.Adornee = part
 					if model.Name == "other" then
-						highlight.FillColor = Color3.new(0.5, 0, 0.5) -- фиолетовый
+						highlight.FillColor = Color3.new(0.490196, 0, 0.490196) -- фиолетовый
 						highlight.OutlineColor = Color3.new(1, 0, 1)
 					else
-						highlight.FillColor = Color3.new(0, 0.490196, 0) -- зеленый
-						highlight.OutlineColor = Color3.new(0, 1, 0)
+						highlight.FillColor = Color3.new(0.490196, 0.490196, 0) -- зеленый
+						highlight.OutlineColor = Color3.new(1, 1, 0)
 					end
 					highlight.FillTransparency = 0.2
 					highlight.OutlineTransparency = 0
@@ -441,7 +442,7 @@ runService.RenderStepped:Connect(function()
 	if now - lastUpdateTime >= 1 then -- обновлять 5 раз в секунду
 		local chests = getAllObjectsByNames({"chests"})
 		local items = getAllObjectsByNames({"other"})
-		updateLines(chests, linesToChests, Color3.new(0.333333, 1, 0))
+		updateLines(chests, linesToChests, Color3.new(1, 1, 0))
 		updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
 		lastUpdateTime = now
 	end
@@ -460,6 +461,6 @@ game:GetService("RunService").Heartbeat:Connect(function()
 		lastCacheUpdate = now
 	end
 	-- В основном цикле обновления линий используйте кешированные данные
-	updateLines(chestsCache, linesToChests, Color3.new(0.333333, 1, 0))
+	updateLines(chestsCache, linesToChests, Color3.new(1, 1, 0))
 	updateLines(itemsCache, linesToOther, Color3.new(0.333333, 0, 1))
 end)
