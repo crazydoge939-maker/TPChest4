@@ -13,6 +13,7 @@ local HeightMax = 210
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
@@ -296,8 +297,8 @@ local function addHighlightToObjects(names)
 					local highlight = Instance.new("Highlight")
 					highlight.Adornee = part
 					if model.Name == "other" then
-						highlight.FillColor = Color3.new(0.490196, 0, 0.490196) -- фиолетовый
-						highlight.OutlineColor = Color3.new(1, 0, 1)
+						highlight.FillColor = Color3.new(0, 0, 0.498039) -- фиолетовый
+						highlight.OutlineColor = Color3.new(0, 0, 1)
 					else
 						highlight.FillColor = Color3.new(0.490196, 0.490196, 0) -- зеленый
 						highlight.OutlineColor = Color3.new(1, 1, 0)
@@ -461,5 +462,5 @@ game:GetService("RunService").Heartbeat:Connect(function()
 	end
 	-- В основном цикле обновления линий используйте кешированные данные
 	updateLines(chestsCache, linesToChests, Color3.new(1, 1, 0))
-	updateLines(itemsCache, linesToOther, Color3.new(0.333333, 0, 1))
+	updateLines(itemsCache, linesToOther, Color3.new(0, 0, 1))
 end)
