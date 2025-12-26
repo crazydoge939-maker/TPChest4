@@ -5,7 +5,7 @@ local humanoid = character:WaitForChild("Humanoid")
 
 local runService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local workspace = game.Workspace
+local workspace = game:GetService("Workspace")
 
 local HeightMin = 113
 local HeightMax = 210
@@ -18,8 +18,8 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 220)
-panel.Position = UDim2.new(0.5, -150, 0.5, -100)
+panel.Size = UDim2.new(0, 200, 0, 265)
+panel.Position = UDim2.new(0.5, -100, 0.5, -150)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
@@ -75,8 +75,8 @@ title.Parent = panel
 -- Кнопки [Сундуки]
 local startChestButton = Instance.new("TextButton")
 startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0, 20, 0, 130)
-startChestButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+startChestButton.Position = UDim2.new(0.1, 0, 0, 130)
+startChestButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
 startChestButton.BorderSizePixel = 2
 startChestButton.BorderColor3 = Color3.new(1, 1, 1)
 startChestButton.Font = Enum.Font.SourceSansBold
@@ -88,7 +88,7 @@ startChestButton.Parent = panel
 
 local stopChestButton = Instance.new("TextButton")
 stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0, 20, 0, 130)
+stopChestButton.Position = UDim2.new(0.1, 0, 0, 130)
 stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopChestButton.BorderSizePixel = 2
 stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -100,34 +100,23 @@ stopChestButton.TextColor3 = Color3.new(1, 1, 1)
 stopChestButton.Parent = panel
 stopChestButton.Visible = false
 
--- Кнопки [Предметы]
---local startItemButton = Instance.new("TextButton")
---startItemButton.Size = UDim2.new(0.8, 0, 0, 40)
---startItemButton.Position = UDim2.new(0, 20, 0, 180)
---startItemButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
---startItemButton.BorderSizePixel = 2
---startItemButton.BorderColor3 = Color3.new(1, 1, 1)
---startItemButton.Font = Enum.Font.SourceSansBold
---startItemButton.TextSize = 16
---startItemButton.TextScaled = true
---startItemButton.Text = "Старт [Предметы]"
---startItemButton.TextColor3 = Color3.new(1, 1, 1)
---startItemButton.Parent = panel
+-- Кнопка переключения режима подсветки линий/подсветки
+local toggleHighlightButton = Instance.new("TextButton")
+toggleHighlightButton.Size = UDim2.new(0.8, 0, 0, 40)
+toggleHighlightButton.Position = UDim2.new(0.1, 0, 0, 225)
+toggleHighlightButton.BackgroundColor3 = Color3.fromRGB(0, 0, 170)
+toggleHighlightButton.BorderSizePixel = 2
+toggleHighlightButton.BorderColor3 = Color3.new(1, 1, 1)
+toggleHighlightButton.Font = Enum.Font.SourceSansBold
+toggleHighlightButton.TextSize = 14
+toggleHighlightButton.TextScaled = true
+toggleHighlightButton.Text = "[OFF] Подсветку"
+toggleHighlightButton.TextColor3 = Color3.new(1, 1, 1)
+toggleHighlightButton.Parent = panel
 
---local stopItemButton = Instance.new("TextButton")
---stopItemButton.Size = UDim2.new(0.8, 0, 0, 40)
---stopItemButton.Position = UDim2.new(0, 20, 0, 180)
---stopItemButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
---stopItemButton.BorderSizePixel = 2
---stopItemButton.BorderColor3 = Color3.new(1, 1, 1)
---stopItemButton.Font = Enum.Font.SourceSansBold
---stopItemButton.TextSize = 16
---stopItemButton.TextScaled = true
---stopItemButton.Text = "Стоп [Предметы]"
---stopItemButton.TextColor3 = Color3.new(1, 1, 1)
---stopItemButton.Parent = panel
---stopItemButton.Visible = false
+local isHighlightEnabled = true -- состояние подсветки
 
+-- Метки
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
 chestCountLabel.Position = UDim2.new(0, 10, 0, 40)
@@ -164,12 +153,11 @@ coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
-
--- Создание Линии
--- Таблицы для линий
+-- Линии (храним в таблицах)
 local linesToChests = {}
 local linesToOther = {}
 
+-- Функции для создания Attachment и Beam
 local function createAttachment(parent)
 	local att = Instance.new("Attachment")
 	att.Parent = parent
@@ -183,66 +171,47 @@ local function createBeam(attachment0, attachment1, color)
 	beam.Color = ColorSequence.new(color)
 	beam.Width0 = 0.2
 	beam.Width1 = 0.2
-	beam.Parent = attachment0.Parent -- или в workspace
 	beam.FaceCamera = true
+	beam.Parent = attachment0.Parent
 	return beam
 end
 
-local linesToChests = {}
-local linesToOther = {}
-
-local function updateLines(targets, linesTable, color)
-	-- Если целей нет, удаляем все линии
-	if #targets == 0 then
-		for _, lineData in ipairs(linesTable) do
-			if lineData then
-				if lineData.beam then lineData.beam:Destroy() end
-				if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
-				if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
-			end
-		end
-		table.clear(linesTable)
-		return
-	end
-
-	-- Обновляем или создаем линии
-	for i, target in ipairs(targets) do
-		local lineData = linesTable[i]
-		if not lineData then
-			-- Создаем новые объекты
-			local attachmentPlayer = createAttachment(humanoidRootPart)
-			local attachmentTarget = createAttachment(target)
-			local beam = createBeam(attachmentPlayer, attachmentTarget, color)
-			linesTable[i] = {
-				beam = beam,
-				attachmentPlayer = attachmentPlayer,
-				attachmentTarget = attachmentTarget
-			}
-			lineData = linesTable[i]
-		end
-		-- Обновляем позиции
-		if lineData.attachmentPlayer then
-			lineData.attachmentPlayer.WorldPosition = humanoidRootPart.Position
-		end
-		if lineData.attachmentTarget then
-			lineData.attachmentTarget.WorldPosition = target.Position
-		end
-		if lineData.beam then
-			lineData.beam.Enabled = true
-		end
-	end
-
-	-- Удаляем лишние линии
-	while #linesTable > #targets do
-		local lineData = table.remove(linesTable)
+-- Функция для удаления всех линий
+local function clearAllLines(linesTable)
+	for _, lineData in ipairs(linesTable) do
 		if lineData then
 			if lineData.beam then lineData.beam:Destroy() end
 			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
 			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
 		end
 	end
+	table.clear(linesTable)
 end
 
+-- Обновление линий
+local function updateLines(targets, linesTable, color)
+	-- Удаляем старые линии
+	clearAllLines(linesTable)
+
+	-- Создаем новые
+	for _, target in ipairs(targets) do
+		local attachmentPlayer = createAttachment(humanoidRootPart)
+		local attachmentTarget = createAttachment(target)
+		local beam = createBeam(attachmentPlayer, attachmentTarget, color)
+
+		if not isHighlightEnabled then
+			beam.Transparency = NumberSequence.new(1)
+		else
+			beam.Transparency = NumberSequence.new(0)
+		end
+
+		table.insert(linesTable, {
+			beam = beam,
+			attachmentTarget = attachmentTarget,
+			attachmentPlayer = attachmentPlayer
+		})
+	end
+end
 
 -- Обновление координат
 runService.RenderStepped:Connect(function()
@@ -250,7 +219,7 @@ runService.RenderStepped:Connect(function()
 	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
 end)
 
--- Общие функции для поиска объектов
+-- Получение всех объектов по именам
 local function getAllObjectsByNames(names)
 	local objects = {}
 	for _, model in pairs(workspace:GetDescendants()) do
@@ -267,23 +236,19 @@ end
 
 local function updateChestCount()
 	local chests = getAllObjectsByNames({"chests"})
-	local totalChestCount = #chests
-	chestCountLabel.Text = "Сундуков [" .. tostring(totalChestCount) .. "]"
+	chestCountLabel.Text = "Всего сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
 	local items = getAllObjectsByNames({"other"})
-	local totalItemCount = #items
-	itemCountLabel.Text = "Предметов [" .. tostring(totalItemCount) .. "]"
+	itemCountLabel.Text = "Всего предметов [" .. #items .. "]"
 end
 
 local activeHighlights = {}
 
 local function clearHighlights()
-	for _, highlight in ipairs(activeHighlights) do
-		if highlight and highlight.Parent then
-			highlight:Destroy()
-		end
+	for _, hl in ipairs(activeHighlights) do
+		if hl and hl.Parent then hl:Destroy() end
 	end
 	activeHighlights = {}
 end
@@ -297,11 +262,11 @@ local function addHighlightToObjects(names)
 					local highlight = Instance.new("Highlight")
 					highlight.Adornee = part
 					if model.Name == "other" then
-						highlight.FillColor = Color3.new(1, 0.333333, 0) -- оранжевый
-						highlight.OutlineColor = Color3.new(1, 0.666667, 0)
+						highlight.FillColor = Color3.new(0, 0, 1)
+						highlight.OutlineColor = Color3.new(0, 1, 1)
 					else
-						highlight.FillColor = Color3.new(0.490196, 0.490196, 0) -- зеленый
-						highlight.OutlineColor = Color3.new(1, 1, 0)
+						highlight.FillColor = Color3.new(1, 0.6667, 0)
+						highlight.OutlineColor = Color3.new(1, 0.3333, 0)
 					end
 					highlight.FillTransparency = 0.2
 					highlight.OutlineTransparency = 0
@@ -314,7 +279,6 @@ local function addHighlightToObjects(names)
 end
 
 local teleportingChest = false
-local teleportingItem = false
 
 local function startTeleportChestCycle()
 	if teleportingChest then return end
@@ -326,8 +290,6 @@ local function startTeleportChestCycle()
 		while teleportingChest do
 			local chests = getAllObjectsByNames({"chests"})
 			local accessibleChests = {}
-
-			-- Проверка сундуков
 			for _, chest in pairs(chests) do
 				local accessible = false
 				for _, part in pairs(chest:GetChildren()) do
@@ -341,8 +303,6 @@ local function startTeleportChestCycle()
 				end
 				if accessible then table.insert(accessibleChests, chest) end
 			end
-
-			-- Телепортируемся к случайному сундуку
 			if #accessibleChests > 0 then
 				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
 				for _, part in pairs(selectedChest:GetChildren()) do
@@ -360,49 +320,30 @@ local function startTeleportChestCycle()
 	end)()
 end
 
---local function startTeleportItemCycle()
---	if teleportingItem then return end
---	teleportingItem = true
---	startItemButton.Visible = false
---	stopItemButton.Visible = true
+local function setLinesVisibility(enabled)
+	for _, lineData in ipairs(linesToChests) do
+		if lineData then
+			if lineData.beam then
+				lineData.beam.Enabled = enabled
+			end
+		end
+	end
+	for _, lineData in ipairs(linesToOther) do
+		if lineData then
+			if lineData.beam then
+				lineData.beam.Enabled = enabled
+			end
+		end
+	end
+end
 
---	coroutine.wrap(function()
---		while teleportingItem do
---			local items = getAllObjectsByNames({"other"})
---			local accessibleItems = {}
-
---			-- Проверка сундуков
---			for _, item in pairs(items) do
---				local accessible = false
---				for _, part in pairs(item:GetChildren()) do
---					if part:IsA("Part") then
---						local y = part.Position.Y
---						if y >= HeightMin and y <= HeightMax then
---							accessible = true
---							break
---						end
---					end
---				end
---				if accessible then table.insert(accessibleItems, item) end
---			end
-
---			-- Телепортируемся к случайному предмету
---			if #accessibleItems > 0 then
---				local selectedItem = accessibleItems[math.random(1, #accessibleItems)]
---				for _, part in pairs(selectedItem:GetChildren()) do
---					if part:IsA("Part") then
---						local y = part.Position.Y
---						if y >= HeightMin and y <= HeightMax then
---							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
---							break
---						end
---					end
---				end
---			end
---			wait(0.1)
---		end
---	end)()
---end
+local function setLinesTransparency(linesTable, transparencyValue)
+	for _, lineData in ipairs(linesTable) do
+		if lineData and lineData.beam then
+			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
+		end
+	end
+end
 
 local function stopTeleportChestCycle()
 	teleportingChest = false
@@ -410,57 +351,50 @@ local function stopTeleportChestCycle()
 	stopChestButton.Visible = false
 end
 
---local function stopTeleportItemCycle()
---	teleportingItem = false
---	startItemButton.Visible = true
---	stopItemButton.Visible = false
---end
+-- Обработка кнопки переключения подсветки
+toggleHighlightButton.MouseButton1Click:Connect(function()
+	isHighlightEnabled = not isHighlightEnabled
+	if isHighlightEnabled then
+		toggleHighlightButton.Text = "[OFF] Подсветку"
+		setLinesVisibility(true)
+		setLinesTransparency(linesToChests, 0)
+		setLinesTransparency(linesToOther, 0)
+		addHighlightToObjects({"chests", "other"})
+	else
+		toggleHighlightButton.Text = "[ON] Подсветку"
+		setLinesVisibility(false)
+		setLinesTransparency(linesToChests, 1)
+		setLinesTransparency(linesToOther, 1)
+		clearHighlights()
+	end
+end)
 
 startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
 stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
 
---startItemButton.MouseButton1Click:Connect(startTeleportItemCycle)
---stopItemButton.MouseButton1Click:Connect(stopTeleportItemCycle)
-
--- Обновляем и подсвечиваем каждые 5 секунд
+-- Обновление и подсветка каждые 0.1 сек
 spawn(function()
 	while true do
 		updateChestCount()
 		updateItemCount()
-		addHighlightToObjects({"chests", "other"})
+		if isHighlightEnabled then
+			addHighlightToObjects({"chests", "other"})
+		else
+			clearHighlights()
+		end
 		wait(0.1)
 	end
 end)
 
--- Изначальная подсветка
-addHighlightToObjects({"chests", "other"})
-
--- Обновление линий каждый фрейм
+-- Обновление линий каждые 0.2 сек
 local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
-	if now - lastUpdateTime >= 1 then -- обновлять 5 раз в секунду
+	if now - lastUpdateTime >= 0.2 then
 		local chests = getAllObjectsByNames({"chests"})
 		local items = getAllObjectsByNames({"other"})
-		updateLines(chests, linesToChests, Color3.new(1, 1, 0))
-		updateLines(items, linesToOther, Color3.new(0.333333, 0, 1))
+		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
+		updateLines(items, linesToOther, Color3.new(0, 1, 1))
 		lastUpdateTime = now
 	end
-end)
-
-local chestsCache = {}
-local itemsCache = {}
-local cacheUpdateInterval = 20 -- секунд
-local lastCacheUpdate = 0
-
-game:GetService("RunService").Heartbeat:Connect(function()
-	local now = tick()
-	if now - lastCacheUpdate >= cacheUpdateInterval then
-		chestsCache = getAllObjectsByNames({"chests"})
-		itemsCache = getAllObjectsByNames({"other"})
-		lastCacheUpdate = now
-	end
-	-- В основном цикле обновления линий используйте кешированные данные
-	updateLines(chestsCache, linesToChests, Color3.new(1, 0.333333, 0))
-	updateLines(itemsCache, linesToOther, Color3.new(0, 0, 1))
 end)
