@@ -236,12 +236,12 @@ end
 
 local function updateChestCount()
 	local chests = getAllObjectsByNames({"chests"})
-	chestCountLabel.Text = "Всего сундуков [" .. #chests .. "]"
+	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
 	local items = getAllObjectsByNames({"other"})
-	itemCountLabel.Text = "Всего предметов [" .. #items .. "]"
+	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
 local activeHighlights = {}
