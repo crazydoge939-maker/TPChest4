@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -9,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local workspace = game:GetService("Workspace")
 
 local HeightMin = 90
-local HeightMax = 160
+local HeightMax = 150
 
 -- Списки названий моделей
 local ChestModels = {"Chest"}
@@ -25,9 +24,6 @@ local ItemModels = {
 	"Tomato",
 	"Cocoa Bean",
 	"Onion",
-	"Metal Ore",
-	"Gold Ore",
-	"Diamond Ore",
 }
 
 -- Создаем ScreenGui
