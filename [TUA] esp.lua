@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -21,12 +20,10 @@ local ItemModels = {
 	"Heart",
 	"Eye",
 	"Mysterious Shadow",
-
 	"Four-Leaf Clover",
 	"Tomato",
 	"Cocoa Bean",
 	"Onion",
-
 	"Metal Ore",
 	"Gold Ore",
 	"Diamond Ore",
@@ -191,12 +188,21 @@ coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
--- Храним линии — удалил все связанные с линиями
--- (они больше не нужны, так что переменные и функции для линий удаляем)
+-- Таблица для хранения активных Highlight
+local activeHighlights = {}
 
--- Функции и переменные, связанные с линиями, удалены
+local function clearHighlights()
+	for _, hl in ipairs(activeHighlights) do
+		if hl and hl.Parent then hl:Destroy() end
+	end
+	activeHighlights = {}
+end
 
--- Остальной код без функций линий
+local function updatePlayerCoordinates()
+	local pos = humanoidRootPart.Position
+	coordsLabel.Text = string.format("Координаты [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+end
+
 local function getObjectsByNames(names)
 	local objects = {}
 	-- Путь для сундуков
@@ -245,22 +251,6 @@ local function updateItemCount()
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
-local activeHighlights = {}
-
-local function clearHighlights()
-	for _, hl in ipairs(activeHighlights) do
-		if hl and hl.Parent then hl:Destroy() end
-	end
-	activeHighlights = {}
-end
-
-local function teleportToObject(objectPart)
-	local y = objectPart.Position.Y
-	if y >= HeightMin and y <= HeightMax then
-		humanoidRootPart.CFrame = CFrame.new(objectPart.Position.X, y + 3, objectPart.Position.Z)
-	end
-end
-
 local function setupClickToTeleport(part)
 	if part then
 		local clickDetector = part:FindFirstChildOfClass("ClickDetector")
@@ -270,7 +260,10 @@ local function setupClickToTeleport(part)
 		end
 		clickDetector.MouseClick:Connect(function()
 			if tpModeActive then
-				teleportToObject(part)
+				local y = part.Position.Y
+				if y >= HeightMin and y <= HeightMax then
+					humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+				end
 			end
 		end)
 	end
@@ -320,28 +313,16 @@ local function startTeleportChestCycle()
 			local chests = getAllObjectsByModels(ChestModels)
 			local accessibleChests = {}
 			for _, chest in pairs(chests) do
-				local accessible = false
-				for _, part in pairs(chest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
-						end
-					end
+				local y = chest.Position.Y
+				if y >= HeightMin and y <= HeightMax then
+					table.insert(accessibleChests, chest)
 				end
-				if accessible then table.insert(accessibleChests, chest) end
 			end
 			if #accessibleChests > 0 then
 				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
-						end
-					end
+				local y = selectedChest.Position.Y
+				if y >= HeightMin and y <= HeightMax then
+					humanoidRootPart.CFrame = CFrame.new(selectedChest.Position.X, y + 3, selectedChest.Position.Z)
 				end
 			end
 			wait(0.1)
@@ -355,15 +336,19 @@ local function stopTeleportChestCycle()
 	stopChestButton.Visible = false
 end
 
-local function setLinesVisibility(enabled)
-	-- Удалил функции, связанные с линиями
-end
+-- Обработчики кнопок
+startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
+stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
 
-local function setLinesTransparency(linesTable, transparencyValue)
-	-- Удалил функции, связанные с линиями
-end
+tpItemsButton.MouseButton1Click:Connect(function()
+	tpModeActive = not tpModeActive
+	if tpModeActive then
+		tpItemsButton.Text = "Стоп [Предметам]"
+	else
+		tpItemsButton.Text = "Старт [Предметам]"
+	end
+end)
 
--- Обработчик кнопки подсветки
 toggleHighlightButton.MouseButton1Click:Connect(function()
 	isHighlightEnabled = not isHighlightEnabled
 	if isHighlightEnabled then
@@ -375,41 +360,17 @@ toggleHighlightButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Кнопка ТП к предметам
-tpItemsButton.MouseButton1Click:Connect(function()
-	tpModeActive = not tpModeActive
-	if tpModeActive then
-		tpItemsButton.Text = "Стоп [Предметам]"
-	else
-		tpItemsButton.Text = "Старт [Предметам]"
-	end
-end)
-
-startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
-stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
-
--- Обновление информации
+-- Обновление данных
 spawn(function()
 	while true do
 		updateChestCount()
 		updateItemCount()
+		updatePlayerCoordinates()
 		if isHighlightEnabled then
 			addHighlightToObjects()
 		else
 			clearHighlights()
 		end
 		wait(0.1)
-	end
-end)
-
--- Обновление данных (без линий)
-local lastUpdateTime = 0
-runService.RenderStepped:Connect(function()
-	local now = tick()
-	if now - lastUpdateTime >= 0.2 then
-		local chests = getObjectsByNames(ChestModels)
-		local items = getObjectsByNames(ItemModels)
-		-- удалены функции для линий
-		lastUpdateTime = now
 	end
 end)
