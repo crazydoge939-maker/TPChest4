@@ -235,7 +235,7 @@ local function getAllObjectsByNames(names)
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests"})
+	local chests = getAllObjectsByNames({"SEWERS"})
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
@@ -288,7 +288,7 @@ local function startTeleportChestCycle()
 
 	coroutine.wrap(function()
 		while teleportingChest do
-			local chests = getAllObjectsByNames({"chests"})
+			local chests = getAllObjectsByNames({"SEWERS"})
 			local accessibleChests = {}
 			for _, chest in pairs(chests) do
 				local accessible = false
@@ -359,7 +359,7 @@ toggleHighlightButton.MouseButton1Click:Connect(function()
 		setLinesVisibility(true)
 		setLinesTransparency(linesToChests, 0)
 		setLinesTransparency(linesToOther, 0)
-		addHighlightToObjects({"chests", "other"})
+		addHighlightToObjects({"SEWERS", "other"})
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
 		setLinesVisibility(false)
@@ -378,7 +378,7 @@ spawn(function()
 		updateChestCount()
 		updateItemCount()
 		if isHighlightEnabled then
-			addHighlightToObjects({"chests", "other"})
+			addHighlightToObjects({"SEWERS", "other"})
 		else
 			clearHighlights()
 		end
@@ -391,7 +391,7 @@ local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
 	if now - lastUpdateTime >= 0.2 then
-		local chests = getAllObjectsByNames({"chests"})
+		local chests = getAllObjectsByNames({"SEWERS"})
 		local items = getAllObjectsByNames({"other"})
 		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
 		updateLines(items, linesToOther, Color3.new(0, 1, 1))
