@@ -190,11 +190,12 @@ coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
--- Храним линии
-local linesToChests = {}
-local linesToItems = {}
+-- Храним линии — удалил все связанные с линиями
+-- (они больше не нужны, так что переменные и функции для линий удаляем)
 
--- Функции для получения объектов по спискам названий
+-- Функции и переменные, связанные с линиями, удалены
+
+-- Остальной код без функций линий
 local function getObjectsByNames(names)
 	local objects = {}
 	for _, model in pairs(workspace:GetDescendants()) do
@@ -209,64 +210,6 @@ local function getObjectsByNames(names)
 	return objects
 end
 
--- Создаем Attachment и Beam
-local function createAttachment(parent)
-	local att = Instance.new("Attachment")
-	att.Parent = parent
-	return att
-end
-
-local function createBeam(att0, att1, color)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = att0
-	beam.Attachment1 = att1
-	beam.Color = ColorSequence.new(color)
-	beam.Width0 = 0.2
-	beam.Width1 = 0.2
-	beam.FaceCamera = true
-	beam.Parent = att0.Parent
-	return beam
-end
-
--- Удаление всех линий
-local function clearAllLines(linesTable)
-	for _, lineData in ipairs(linesTable) do
-		if lineData then
-			if lineData.beam then lineData.beam:Destroy() end
-			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
-			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
-		end
-	end
-	table.clear(linesTable)
-end
-
--- Обновление линий
-local function updateLines(targets, linesTable, color)
-	clearAllLines(linesTable)
-	for _, target in ipairs(targets) do
-		local attPlayer = createAttachment(humanoidRootPart)
-		local attTarget = createAttachment(target)
-		local beam = createBeam(attPlayer, attTarget, color)
-		if not isHighlightEnabled then
-			beam.Transparency = NumberSequence.new(1)
-		else
-			beam.Transparency = NumberSequence.new(0)
-		end
-		table.insert(linesTable, {
-			beam = beam,
-			attachmentTarget = attTarget,
-			attachmentPlayer = attPlayer
-		})
-	end
-end
-
--- Обновление координат
-runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                                                                                      [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
-end)
-
--- Получение всех объектов по спискам моделей
 local function getAllObjectsByModels(modelNames)
 	return getObjectsByNames(modelNames)
 end
@@ -290,7 +233,6 @@ local function clearHighlights()
 	activeHighlights = {}
 end
 
--- Функция телепортации к объекту
 local function teleportToObject(objectPart)
 	local y = objectPart.Position.Y
 	if y >= HeightMin and y <= HeightMax then
@@ -298,7 +240,6 @@ local function teleportToObject(objectPart)
 	end
 end
 
--- Обработка клика по объекту
 local function setupClickToTeleport(part)
 	if part then
 		local clickDetector = part:FindFirstChildOfClass("ClickDetector")
@@ -336,7 +277,7 @@ local function addHighlightToObjects()
 						highlight.Parent = part
 						table.insert(activeHighlights, highlight)
 
-						-- Добавляем к объекту обработчик клика для телепорта
+						-- Обработчик клика для телепорта
 						setupClickToTeleport(part)
 					end
 				end
@@ -394,45 +335,26 @@ local function stopTeleportChestCycle()
 end
 
 local function setLinesVisibility(enabled)
-	for _, lineData in ipairs(linesToChests) do
-		if lineData and lineData.beam then
-			lineData.beam.Enabled = enabled
-		end
-	end
-	for _, lineData in ipairs(linesToItems) do
-		if lineData and lineData.beam then
-			lineData.beam.Enabled = enabled
-		end
-	end
+	-- Удалил функции, связанные с линиями
 end
 
 local function setLinesTransparency(linesTable, transparencyValue)
-	for _, lineData in ipairs(linesTable) do
-		if lineData and lineData.beam then
-			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
-		end
-	end
+	-- Удалил функции, связанные с линиями
 end
 
--- Обработка переключателя подсветки
+-- Обработчик кнопки подсветки
 toggleHighlightButton.MouseButton1Click:Connect(function()
 	isHighlightEnabled = not isHighlightEnabled
 	if isHighlightEnabled then
 		toggleHighlightButton.Text = "[OFF] Подсветку"
-		setLinesVisibility(true)
-		setLinesTransparency(linesToChests, 0)
-		setLinesTransparency(linesToItems, 0)
 		addHighlightToObjects()
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
-		setLinesVisibility(false)
-		setLinesTransparency(linesToChests, 1)
-		setLinesTransparency(linesToItems, 1)
 		clearHighlights()
 	end
 end)
 
--- Новая кнопка для режима ТП к предметам
+-- Кнопка ТП к предметам
 tpItemsButton.MouseButton1Click:Connect(function()
 	tpModeActive = not tpModeActive
 	if tpModeActive then
@@ -445,7 +367,7 @@ end)
 startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
 stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
 
--- Обновление и подсветка
+-- Обновление информации
 spawn(function()
 	while true do
 		updateChestCount()
@@ -459,15 +381,14 @@ spawn(function()
 	end
 end)
 
--- Обновление линий
+-- Обновление данных (без линий)
 local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
 	if now - lastUpdateTime >= 0.2 then
 		local chests = getObjectsByNames(ChestModels)
 		local items = getObjectsByNames(ItemModels)
-		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
-		updateLines(items, linesToItems, Color3.new(0, 1, 1))
+		-- удалены функции для линий
 		lastUpdateTime = now
 	end
 end)
