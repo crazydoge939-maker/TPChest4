@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -205,35 +206,18 @@ end
 
 local function getObjectsByNames(names)
 	local objects = {}
-	-- Путь для сундуков
-	local npcDropsFolder = workspace:FindFirstChild("NPCDrops")
-	if npcDropsFolder then
-		local itemsFolder = npcDropsFolder:FindFirstChild("Items")
-		if itemsFolder then
-			for _, model in pairs(itemsFolder:GetChildren()) do
-				if model:IsA("Model") and table.find(names, model.Name) then
-					for _, child in pairs(model:GetChildren()) do
-						if child:IsA("BasePart") then
-							table.insert(objects, child)
-						end
-					end
+
+	-- Обход всего Workspace
+	for _, descendant in pairs(workspace:GetDescendants()) do
+		if descendant:IsA("Model") and table.find(names, descendant.Name) then
+			for _, child in pairs(descendant:GetChildren()) do
+				if child:IsA("BasePart") then
+					table.insert(objects, child)
 				end
 			end
 		end
 	end
-	-- Путь для предметов
-	local itemsFolder = workspace:FindFirstChild("Items")
-	if itemsFolder then
-		for _, model in pairs(itemsFolder:GetChildren()) do
-			if model:IsA("Model") and table.find(names, model.Name) then
-				for _, child in pairs(model:GetChildren()) do
-					if child:IsA("BasePart") then
-						table.insert(objects, child)
-					end
-				end
-			end
-		end
-	end
+
 	return objects
 end
 
