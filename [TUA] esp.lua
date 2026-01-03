@@ -84,7 +84,7 @@ title.TextScaled = true
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Кнопка переключения подсветки линий/подсветки
+-- Кнопка переключения режима подсветки линий/подсветки
 local toggleHighlightButton = Instance.new("TextButton")
 toggleHighlightButton.Size = UDim2.new(0.8, 0, 0, 40)
 toggleHighlightButton.Position = UDim2.new(0.1, 0, 0, 125)
@@ -125,16 +125,21 @@ itemCountLabel.TextScaled = true
 itemCountLabel.TextColor3 = Color3.new(1, 1, 1)
 itemCountLabel.Parent = panel
 
--- Храним линии
-local linesToChests = {}
-local linesToItems = {}
+-- Таблица для хранения активных Highlight
+local activeHighlights = {}
 
--- Функции для получения объектов по спискам названий
+local function clearHighlights()
+	for _, hl in ipairs(activeHighlights) do
+		if hl and hl.Parent then hl:Destroy() end
+	end
+	activeHighlights = {}
+end
+
 local function getObjectsByNames(names)
 	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, child in pairs(model:GetChildren()) do
+	for _, descendant in pairs(workspace:GetDescendants()) do
+		if descendant:IsA("Model") and table.find(names, descendant.Name) then
+			for _, child in pairs(descendant:GetChildren()) do
 				if child:IsA("BasePart") then
 					table.insert(objects, child)
 				end
@@ -144,58 +149,6 @@ local function getObjectsByNames(names)
 	return objects
 end
 
--- Создаем Attachment и Beam
-local function createAttachment(parent)
-	local att = Instance.new("Attachment")
-	att.Parent = parent
-	return att
-end
-
-local function createBeam(att0, att1, color)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = att0
-	beam.Attachment1 = att1
-	beam.Color = ColorSequence.new(color)
-	beam.Width0 = 0.2
-	beam.Width1 = 0.2
-	beam.FaceCamera = true
-	beam.Parent = att0.Parent
-	return beam
-end
-
--- Удаление всех линий
-local function clearAllLines(linesTable)
-	for _, lineData in ipairs(linesTable) do
-		if lineData then
-			if lineData.beam then lineData.beam:Destroy() end
-			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
-			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
-		end
-	end
-	table.clear(linesTable)
-end
-
--- Обновление линий
-local function updateLines(targets, linesTable, color)
-	clearAllLines(linesTable)
-	for _, target in ipairs(targets) do
-		local attPlayer = createAttachment(humanoidRootPart)
-		local attTarget = createAttachment(target)
-		local beam = createBeam(attPlayer, attTarget, color)
-		if not isHighlightEnabled then
-			beam.Transparency = NumberSequence.new(1)
-		else
-			beam.Transparency = NumberSequence.new(0)
-		end
-		table.insert(linesTable, {
-			beam = beam,
-			attachmentTarget = attTarget,
-			attachmentPlayer = attPlayer
-		})
-	end
-end
-
--- Получение всех объектов по спискам моделей
 local function getAllObjectsByModels(modelNames)
 	return getObjectsByNames(modelNames)
 end
@@ -209,17 +162,6 @@ local function updateItemCount()
 	local items = getAllObjectsByModels(ItemModels)
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
-
-local activeHighlights = {}
-
-local function clearHighlights()
-	for _, hl in ipairs(activeHighlights) do
-		if hl and hl.Parent then hl:Destroy() end
-	end
-	activeHighlights = {}
-end
-
--- Удалена функция телепортации и обработка клика
 
 local function addHighlightToObjects()
 	clearHighlights()
@@ -249,68 +191,22 @@ local function addHighlightToObjects()
 	end
 end
 
-local function setLinesVisibility(enabled)
-	for _, lineData in ipairs(linesToChests) do
-		if lineData and lineData.beam then
-			lineData.beam.Enabled = enabled
-		end
-	end
-	for _, lineData in ipairs(linesToItems) do
-		if lineData and lineData.beam then
-			lineData.beam.Enabled = enabled
-		end
-	end
-end
-
-local function setLinesTransparency(linesTable, transparencyValue)
-	for _, lineData in ipairs(linesTable) do
-		if lineData and lineData.beam then
-			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
-		end
-	end
-end
-
--- Обработка переключателя подсветки
-toggleHighlightButton.MouseButton1Click:Connect(function()
-	isHighlightEnabled = not isHighlightEnabled
+local function updateCountsAndHighlights()
+	-- Обновляем счетчики
+	updateChestCount()
+	updateItemCount()
+	-- Обновляем подсветку
 	if isHighlightEnabled then
-		toggleHighlightButton.Text = "[OFF] Подсветку"
-		setLinesVisibility(true)
-		setLinesTransparency(linesToChests, 0)
-		setLinesTransparency(linesToItems, 0)
 		addHighlightToObjects()
 	else
-		toggleHighlightButton.Text = "[ON] Подсветку"
-		setLinesVisibility(false)
-		setLinesTransparency(linesToChests, 1)
-		setLinesTransparency(linesToItems, 1)
 		clearHighlights()
 	end
-end)
+end
 
--- Обновление и подсветка
+-- Обновление данных раз в 1 секунду для снижения лагов
 spawn(function()
 	while true do
-		updateChestCount()
-		updateItemCount()
-		if isHighlightEnabled then
-			addHighlightToObjects()
-		else
-			clearHighlights()
-		end
-		wait(1) -- Увеличил интервал для снижения лагов
-	end
-end)
-
--- Обновление линий с интервалом
-local lastUpdateTime = 0
-runService.RenderStepped:Connect(function()
-	local now = tick()
-	if now - lastUpdateTime >= 0.5 then -- Увеличил интервал
-		local chests = getObjectsByNames(ChestModels)
-		local items = getObjectsByNames(ItemModels)
-		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
-		updateLines(items, linesToItems, Color3.new(0, 1, 1))
-		lastUpdateTime = now
+		updateCountsAndHighlights()
+		wait(1)
 	end
 end)
