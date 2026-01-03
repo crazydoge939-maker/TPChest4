@@ -7,8 +7,8 @@ local runService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local workspace = game:GetService("Workspace")
 
-local HeightMin = 113
-local HeightMax = 210
+local HeightMin = 90
+local HeightMax = 160
 
 -- Списки названий моделей
 local ChestModels = {"Chest"}
