@@ -20,9 +20,6 @@ local ItemModels = {
 	"Tomato",
 	"Cocoa Bean",
 	"Onion",
-	"Metal Ore",
-	"Gold Ore",
-	"Diamond Ore",
 }
 
 -- Создаем ScreenGui
