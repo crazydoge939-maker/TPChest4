@@ -240,7 +240,7 @@ local function updateChestCount()
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other"})
+	local items = getAllObjectsByNames({"Other"})
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
@@ -261,7 +261,7 @@ local function addHighlightToObjects(names)
 				if part:IsA("BasePart") then
 					local highlight = Instance.new("Highlight")
 					highlight.Adornee = part
-					if model.Name == "other" then
+					if model.Name == "Other" then
 						highlight.FillColor = Color3.new(0, 0, 1)
 						highlight.OutlineColor = Color3.new(0, 1, 1)
 					else
@@ -359,7 +359,7 @@ toggleHighlightButton.MouseButton1Click:Connect(function()
 		setLinesVisibility(true)
 		setLinesTransparency(linesToChests, 0)
 		setLinesTransparency(linesToOther, 0)
-		addHighlightToObjects({"Items", "other"})
+		addHighlightToObjects({"Items", "Other"})
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
 		setLinesVisibility(false)
@@ -378,7 +378,7 @@ spawn(function()
 		updateChestCount()
 		updateItemCount()
 		if isHighlightEnabled then
-			addHighlightToObjects({"Items", "other"})
+			addHighlightToObjects({"Items", "Other"})
 		else
 			clearHighlights()
 		end
@@ -392,7 +392,7 @@ runService.RenderStepped:Connect(function()
 	local now = tick()
 	if now - lastUpdateTime >= 0.2 then
 		local chests = getAllObjectsByNames({"Items"})
-		local items = getAllObjectsByNames({"other"})
+		local items = getAllObjectsByNames({"Other"})
 		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
 		updateLines(items, linesToOther, Color3.new(0, 1, 1))
 		lastUpdateTime = now
