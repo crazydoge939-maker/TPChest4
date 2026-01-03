@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -9,6 +10,27 @@ local workspace = game:GetService("Workspace")
 
 local HeightMin = 113
 local HeightMax = 210
+
+-- Списки названий моделей
+local ChestModels = {"Chest"}
+local ItemModels = {	
+	"Rainbow  Star",
+	"Moon Fragment",
+	"Meat",
+	"Rotting Meat",
+	"Heart",
+	"Eye",
+	"Mysterious Shadow",
+
+	"Four-Leaf Clover",
+	"Tomato",
+	"Cocoa Bean",
+	"Onion",
+
+	"Metal Ore",
+	"Gold Ore",
+	"Diamond Ore",
+}
 
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -74,8 +96,8 @@ title.Parent = panel
 
 -- Кнопки [Сундуки]
 local startChestButton = Instance.new("TextButton")
-startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0.1, 0, 0, 130)
+startChestButton.Size = UDim2.new(0.45, 0, 0, 40)
+startChestButton.Position = UDim2.new(0.035, 0, 0, 130)
 startChestButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
 startChestButton.BorderSizePixel = 2
 startChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -87,8 +109,8 @@ startChestButton.TextColor3 = Color3.new(1, 1, 1)
 startChestButton.Parent = panel
 
 local stopChestButton = Instance.new("TextButton")
-stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0.1, 0, 0, 130)
+stopChestButton.Size = UDim2.new(0.45, 0, 0, 40)
+stopChestButton.Position = UDim2.new(0.035, 0, 0, 130)
 stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopChestButton.BorderSizePixel = 2
 stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -99,6 +121,22 @@ stopChestButton.Text = "Стоп [Сундуки]"
 stopChestButton.TextColor3 = Color3.new(1, 1, 1)
 stopChestButton.Parent = panel
 stopChestButton.Visible = false
+
+-- Кнопки [Предметам]
+local tpItemsButton = Instance.new("TextButton")
+tpItemsButton.Size = UDim2.new(0.45, 0, 0, 40)
+tpItemsButton.Position = UDim2.new(0.515, 0, 0, 130)
+tpItemsButton.BackgroundColor3 = Color3.fromRGB(0, 170, 170)
+tpItemsButton.BorderSizePixel = 2
+tpItemsButton.BorderColor3 = Color3.new(1, 1, 1)
+tpItemsButton.Font = Enum.Font.SourceSansBold
+tpItemsButton.TextSize = 14
+tpItemsButton.TextScaled = true
+tpItemsButton.Text = "Старт [Предметам]"
+tpItemsButton.TextColor3 = Color3.new(1,1,1)
+tpItemsButton.Parent = panel
+
+local tpModeActive = false -- режим телепортации к предметам
 
 -- Кнопка переключения режима подсветки линий/подсветки
 local toggleHighlightButton = Instance.new("TextButton")
@@ -153,80 +191,39 @@ coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
--- Линии (храним в таблицах)
-local linesToChests = {}
-local linesToOther = {}
+-- Храним линии — удалил все связанные с линиями
+-- (они больше не нужны, так что переменные и функции для линий удаляем)
 
--- Функции для создания Attachment и Beam
-local function createAttachment(parent)
-	local att = Instance.new("Attachment")
-	att.Parent = parent
-	return att
-end
+-- Функции и переменные, связанные с линиями, удалены
 
-local function createBeam(attachment0, attachment1, color)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = attachment0
-	beam.Attachment1 = attachment1
-	beam.Color = ColorSequence.new(color)
-	beam.Width0 = 0.2
-	beam.Width1 = 0.2
-	beam.FaceCamera = true
-	beam.Parent = attachment0.Parent
-	return beam
-end
-
--- Функция для удаления всех линий
-local function clearAllLines(linesTable)
-	for _, lineData in ipairs(linesTable) do
-		if lineData then
-			if lineData.beam then lineData.beam:Destroy() end
-			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
-			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
-		end
-	end
-	table.clear(linesTable)
-end
-
--- Обновление линий
-local function updateLines(targets, linesTable, color)
-	-- Удаляем старые линии
-	clearAllLines(linesTable)
-
-	-- Создаем новые
-	for _, target in ipairs(targets) do
-		local attachmentPlayer = createAttachment(humanoidRootPart)
-		local attachmentTarget = createAttachment(target)
-		local beam = createBeam(attachmentPlayer, attachmentTarget, color)
-
-		if not isHighlightEnabled then
-			beam.Transparency = NumberSequence.new(1)
-		else
-			beam.Transparency = NumberSequence.new(0)
-		end
-
-		table.insert(linesTable, {
-			beam = beam,
-			attachmentTarget = attachmentTarget,
-			attachmentPlayer = attachmentPlayer
-		})
-	end
-end
-
--- Обновление координат
-runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
-end)
-
--- Получение всех объектов по именам
-local function getAllObjectsByNames(names)
+-- Остальной код без функций линий
+local function getObjectsByNames(names)
 	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") then
-					table.insert(objects, child)
+	-- Путь для сундуков
+	local npcDropsFolder = workspace:FindFirstChild("NPCDrops")
+	if npcDropsFolder then
+		local itemsFolder = npcDropsFolder:FindFirstChild("Items")
+		if itemsFolder then
+			for _, model in pairs(itemsFolder:GetChildren()) do
+				if model:IsA("Model") and table.find(names, model.Name) then
+					for _, child in pairs(model:GetChildren()) do
+						if child:IsA("BasePart") then
+							table.insert(objects, child)
+						end
+					end
+				end
+			end
+		end
+	end
+	-- Путь для предметов
+	local itemsFolder = workspace:FindFirstChild("Items")
+	if itemsFolder then
+		for _, model in pairs(itemsFolder:GetChildren()) do
+			if model:IsA("Model") and table.find(names, model.Name) then
+				for _, child in pairs(model:GetChildren()) do
+					if child:IsA("BasePart") then
+						table.insert(objects, child)
+					end
 				end
 			end
 		end
@@ -234,13 +231,17 @@ local function getAllObjectsByNames(names)
 	return objects
 end
 
+local function getAllObjectsByModels(modelNames)
+	return getObjectsByNames(modelNames)
+end
+
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"Items"})
+	local chests = getAllObjectsByModels(ChestModels)
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"Other"})
+	local items = getAllObjectsByModels(ItemModels)
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
@@ -253,25 +254,53 @@ local function clearHighlights()
 	activeHighlights = {}
 end
 
-local function addHighlightToObjects(names)
+local function teleportToObject(objectPart)
+	local y = objectPart.Position.Y
+	if y >= HeightMin and y <= HeightMax then
+		humanoidRootPart.CFrame = CFrame.new(objectPart.Position.X, y + 3, objectPart.Position.Z)
+	end
+end
+
+local function setupClickToTeleport(part)
+	if part then
+		local clickDetector = part:FindFirstChildOfClass("ClickDetector")
+		if not clickDetector then
+			clickDetector = Instance.new("ClickDetector")
+			clickDetector.Parent = part
+		end
+		clickDetector.MouseClick:Connect(function()
+			if tpModeActive then
+				teleportToObject(part)
+			end
+		end)
+	end
+end
+
+local function addHighlightToObjects()
 	clearHighlights()
 	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, part in pairs(model:GetChildren()) do
-				if part:IsA("BasePart") then
-					local highlight = Instance.new("Highlight")
-					highlight.Adornee = part
-					if model.Name == "Other" then
-						highlight.FillColor = Color3.new(0, 0, 1)
-						highlight.OutlineColor = Color3.new(0, 1, 1)
-					else
-						highlight.FillColor = Color3.new(1, 0.6667, 0)
-						highlight.OutlineColor = Color3.new(1, 0.3333, 0)
+		if model:IsA("Model") then
+			local name = model.Name
+			if table.find(ChestModels, name) or table.find(ItemModels, name) then
+				for _, part in pairs(model:GetChildren()) do
+					if part:IsA("BasePart") then
+						local highlight = Instance.new("Highlight")
+						highlight.Adornee = part
+						if table.find(ChestModels, name) then
+							highlight.FillColor = Color3.new(1, 0.6667, 0)
+							highlight.OutlineColor = Color3.new(1, 0.3333, 0)
+						elseif table.find(ItemModels, name) then
+							highlight.FillColor = Color3.new(0, 0, 1)
+							highlight.OutlineColor = Color3.new(0, 1, 1)
+						end
+						highlight.FillTransparency = 0.2
+						highlight.OutlineTransparency = 0
+						highlight.Parent = part
+						table.insert(activeHighlights, highlight)
+
+						-- Обработчик клика для телепорта
+						setupClickToTeleport(part)
 					end
-					highlight.FillTransparency = 0.2
-					highlight.OutlineTransparency = 0
-					highlight.Parent = part
-					table.insert(activeHighlights, highlight)
 				end
 			end
 		end
@@ -288,7 +317,7 @@ local function startTeleportChestCycle()
 
 	coroutine.wrap(function()
 		while teleportingChest do
-			local chests = getAllObjectsByNames({"Items"})
+			local chests = getAllObjectsByModels(ChestModels)
 			local accessibleChests = {}
 			for _, chest in pairs(chests) do
 				local accessible = false
@@ -320,65 +349,52 @@ local function startTeleportChestCycle()
 	end)()
 end
 
-local function setLinesVisibility(enabled)
-	for _, lineData in ipairs(linesToChests) do
-		if lineData then
-			if lineData.beam then
-				lineData.beam.Enabled = enabled
-			end
-		end
-	end
-	for _, lineData in ipairs(linesToOther) do
-		if lineData then
-			if lineData.beam then
-				lineData.beam.Enabled = enabled
-			end
-		end
-	end
-end
-
-local function setLinesTransparency(linesTable, transparencyValue)
-	for _, lineData in ipairs(linesTable) do
-		if lineData and lineData.beam then
-			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
-		end
-	end
-end
-
 local function stopTeleportChestCycle()
 	teleportingChest = false
 	startChestButton.Visible = true
 	stopChestButton.Visible = false
 end
 
--- Обработка кнопки переключения подсветки
+local function setLinesVisibility(enabled)
+	-- Удалил функции, связанные с линиями
+end
+
+local function setLinesTransparency(linesTable, transparencyValue)
+	-- Удалил функции, связанные с линиями
+end
+
+-- Обработчик кнопки подсветки
 toggleHighlightButton.MouseButton1Click:Connect(function()
 	isHighlightEnabled = not isHighlightEnabled
 	if isHighlightEnabled then
 		toggleHighlightButton.Text = "[OFF] Подсветку"
-		setLinesVisibility(true)
-		setLinesTransparency(linesToChests, 0)
-		setLinesTransparency(linesToOther, 0)
-		addHighlightToObjects({"Items", "Other"})
+		addHighlightToObjects()
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
-		setLinesVisibility(false)
-		setLinesTransparency(linesToChests, 1)
-		setLinesTransparency(linesToOther, 1)
 		clearHighlights()
+	end
+end)
+
+-- Кнопка ТП к предметам
+tpItemsButton.MouseButton1Click:Connect(function()
+	tpModeActive = not tpModeActive
+	if tpModeActive then
+		tpItemsButton.Text = "Стоп [Предметам]"
+	else
+		tpItemsButton.Text = "Старт [Предметам]"
 	end
 end)
 
 startChestButton.MouseButton1Click:Connect(startTeleportChestCycle)
 stopChestButton.MouseButton1Click:Connect(stopTeleportChestCycle)
 
--- Обновление и подсветка каждые 0.1 сек
+-- Обновление информации
 spawn(function()
 	while true do
 		updateChestCount()
 		updateItemCount()
 		if isHighlightEnabled then
-			addHighlightToObjects({"Items", "Other"})
+			addHighlightToObjects()
 		else
 			clearHighlights()
 		end
@@ -386,15 +402,14 @@ spawn(function()
 	end
 end)
 
--- Обновление линий каждые 0.2 сек
+-- Обновление данных (без линий)
 local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
 	if now - lastUpdateTime >= 0.2 then
-		local chests = getAllObjectsByNames({"Items"})
-		local items = getAllObjectsByNames({"Other"})
-		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
-		updateLines(items, linesToOther, Color3.new(0, 1, 1))
+		local chests = getObjectsByNames(ChestModels)
+		local items = getObjectsByNames(ItemModels)
+		-- удалены функции для линий
 		lastUpdateTime = now
 	end
 end)
