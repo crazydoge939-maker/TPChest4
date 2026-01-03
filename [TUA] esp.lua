@@ -20,12 +20,12 @@ local ItemModels = {
 	"Heart",
 	"Eye",
 	"Mysterious Shadow",
-	
+
 	"Four-Leaf Clover",
 	"Tomato",
 	"Cocoa Bean",
 	"Onion",
-	
+
 	"Metal Ore",
 	"Gold Ore",
 	"Diamond Ore",
@@ -95,8 +95,8 @@ title.Parent = panel
 
 -- Кнопки [Сундуки]
 local startChestButton = Instance.new("TextButton")
-startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0.1, 0, 0, 130)
+startChestButton.Size = UDim2.new(0.45, 0, 0, 40)
+startChestButton.Position = UDim2.new(0.035, 0, 0, 130)
 startChestButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
 startChestButton.BorderSizePixel = 2
 startChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -108,8 +108,8 @@ startChestButton.TextColor3 = Color3.new(1, 1, 1)
 startChestButton.Parent = panel
 
 local stopChestButton = Instance.new("TextButton")
-stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0.1, 0, 0, 130)
+stopChestButton.Size = UDim2.new(0.45, 0, 0, 40)
+stopChestButton.Position = UDim2.new(0.035, 0, 0, 130)
 stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 stopChestButton.BorderSizePixel = 2
 stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
@@ -120,6 +120,22 @@ stopChestButton.Text = "Стоп [Сундуки]"
 stopChestButton.TextColor3 = Color3.new(1, 1, 1)
 stopChestButton.Parent = panel
 stopChestButton.Visible = false
+
+-- Кнопки [Предметам]
+local tpItemsButton = Instance.new("TextButton")
+tpItemsButton.Size = UDim2.new(0.45, 0, 0, 40)
+tpItemsButton.Position = UDim2.new(0.515, 0, 0, 130)
+tpItemsButton.BackgroundColor3 = Color3.fromRGB(0, 170, 170)
+tpItemsButton.BorderSizePixel = 2
+tpItemsButton.BorderColor3 = Color3.new(1, 1, 1)
+tpItemsButton.Font = Enum.Font.SourceSansBold
+tpItemsButton.TextSize = 14
+tpItemsButton.TextScaled = true
+tpItemsButton.Text = "Старт [Предметам]"
+tpItemsButton.TextColor3 = Color3.new(1,1,1)
+tpItemsButton.Parent = panel
+
+local tpModeActive = false -- режим телепортации к предметам
 
 -- Кнопка переключения режима подсветки линий/подсветки
 local toggleHighlightButton = Instance.new("TextButton")
@@ -247,7 +263,7 @@ end
 -- Обновление координат
 runService.RenderStepped:Connect(function()
 	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты                                                                                        [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+	coordsLabel.Text = string.format("Координаты                                                                                      [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
 end)
 
 -- Получение всех объектов по спискам моделей
@@ -274,6 +290,30 @@ local function clearHighlights()
 	activeHighlights = {}
 end
 
+-- Функция телепортации к объекту
+local function teleportToObject(objectPart)
+	local y = objectPart.Position.Y
+	if y >= HeightMin and y <= HeightMax then
+		humanoidRootPart.CFrame = CFrame.new(objectPart.Position.X, y + 3, objectPart.Position.Z)
+	end
+end
+
+-- Обработка клика по объекту
+local function setupClickToTeleport(part)
+	if part then
+		local clickDetector = part:FindFirstChildOfClass("ClickDetector")
+		if not clickDetector then
+			clickDetector = Instance.new("ClickDetector")
+			clickDetector.Parent = part
+		end
+		clickDetector.MouseClick:Connect(function()
+			if tpModeActive then
+				teleportToObject(part)
+			end
+		end)
+	end
+end
+
 local function addHighlightToObjects()
 	clearHighlights()
 	for _, model in pairs(workspace:GetDescendants()) do
@@ -295,6 +335,9 @@ local function addHighlightToObjects()
 						highlight.OutlineTransparency = 0
 						highlight.Parent = part
 						table.insert(activeHighlights, highlight)
+
+						-- Добавляем к объекту обработчик клика для телепорта
+						setupClickToTeleport(part)
 					end
 				end
 			end
@@ -379,13 +422,23 @@ toggleHighlightButton.MouseButton1Click:Connect(function()
 		setLinesVisibility(true)
 		setLinesTransparency(linesToChests, 0)
 		setLinesTransparency(linesToItems, 0)
-		addHighlightToObjects({unpack(ChestModels), unpack(ItemModels)})
+		addHighlightToObjects()
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
 		setLinesVisibility(false)
 		setLinesTransparency(linesToChests, 1)
 		setLinesTransparency(linesToItems, 1)
 		clearHighlights()
+	end
+end)
+
+-- Новая кнопка для режима ТП к предметам
+tpItemsButton.MouseButton1Click:Connect(function()
+	tpModeActive = not tpModeActive
+	if tpModeActive then
+		tpItemsButton.Text = "Стоп [Предметам]"
+	else
+		tpItemsButton.Text = "Старт [Предметам]"
 	end
 end)
 
@@ -398,7 +451,7 @@ spawn(function()
 		updateChestCount()
 		updateItemCount()
 		if isHighlightEnabled then
-			addHighlightToObjects({unpack(ChestModels), unpack(ItemModels)})
+			addHighlightToObjects()
 		else
 			clearHighlights()
 		end
