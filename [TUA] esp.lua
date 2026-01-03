@@ -11,7 +11,7 @@ local HeightMin = 90
 local HeightMax = 150
 
 -- Списки названий моделей
-local ChestModels = {"Chest"}
+local ChestModels = { }
 local ItemModels = {	
 	"Rainbow  Star",
 	"Moon Fragment",
