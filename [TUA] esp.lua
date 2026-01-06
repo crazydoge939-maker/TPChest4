@@ -9,7 +9,7 @@ local workspace = game:GetService("Workspace")
 -- Списки названий моделей
 local ChestModels = {"Chest"}
 local ItemModels = {	
-	"Rainbow  Star",
+	"Rainbow Star",
 	"Moon Fragment",
 	"Meat",
 	"Rotting Meat",
