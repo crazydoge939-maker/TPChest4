@@ -18,7 +18,7 @@ local ItemModels = {
 	"Mysterious Shadow",
 	"Four-Leaf Clover",
 	"Tomato",
-	"Cocoa Bean",
+--	"Cocoa Bean",
 	"Onion",
 }
 
