@@ -37,7 +37,7 @@ panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 panel.Parent = screenGui
 
--- Сделать панель перетаскиваемой
+-- Перетаскивание панели
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -67,7 +67,7 @@ runService.RenderStepped:Connect(function()
 			startPos.X.Scale,
 			startPos.X.Offset + delta.X,
 			startPos.Y.Scale,
-			startPos.Y + delta.Y
+			startPos.Y.Offset + delta.Y
 		)
 	end
 end)
@@ -84,21 +84,21 @@ title.TextScaled = true
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Кнопка переключения режима подсветки линий/подсветки
-local toggleHighlightButton = Instance.new("TextButton")
-toggleHighlightButton.Size = UDim2.new(0.8, 0, 0, 40)
-toggleHighlightButton.Position = UDim2.new(0.1, 0, 0, 125)
-toggleHighlightButton.BackgroundColor3 = Color3.fromRGB(0, 0, 170)
-toggleHighlightButton.BorderSizePixel = 2
-toggleHighlightButton.BorderColor3 = Color3.new(1, 1, 1)
-toggleHighlightButton.Font = Enum.Font.SourceSansBold
-toggleHighlightButton.TextSize = 14
-toggleHighlightButton.TextScaled = true
-toggleHighlightButton.Text = "[OFF] Подсветку"
-toggleHighlightButton.TextColor3 = Color3.new(1, 1, 1)
-toggleHighlightButton.Parent = panel
+-- Кнопка переключения режима отображения названий
+local toggleDisplayButton = Instance.new("TextButton")
+toggleDisplayButton.Size = UDim2.new(0.8, 0, 0, 40)
+toggleDisplayButton.Position = UDim2.new(0.1, 0, 0, 125)
+toggleDisplayButton.BackgroundColor3 = Color3.fromRGB(0, 0, 170)
+toggleDisplayButton.BorderSizePixel = 2
+toggleDisplayButton.BorderColor3 = Color3.new(1, 1, 1)
+toggleDisplayButton.Font = Enum.Font.SourceSansBold
+toggleDisplayButton.TextSize = 14
+toggleDisplayButton.TextScaled = true
+toggleDisplayButton.Text = "[OFF] Названия"
+toggleDisplayButton.TextColor3 = Color3.new(1, 1, 1)
+toggleDisplayButton.Parent = panel
 
-local isHighlightEnabled = false -- состояние подсветки выключено, так как будем показывать названия
+local isDisplayNames = false -- состояние отображения названий
 
 -- Метки для счетчиков
 local chestCountLabel = Instance.new("TextLabel")
@@ -189,7 +189,7 @@ local function addBillboardGuiToObjects()
 						if table.find(ChestModels, name) then
 							textLabel.TextColor3 = Color3.fromRGB(255, 165, 0) -- оранжевый для сундуков
 						else
-							textLabel.TextColor3 = Color3.fromRGB(0, 255, 255) -- синий для предметов
+							textLabel.TextColor3 = Color3.fromRGB(85, 255, 255) -- синий для предметов
 						end
 						textLabel.TextScaled = true
 						textLabel.Font = Enum.Font.SourceSansBold
@@ -203,31 +203,35 @@ local function addBillboardGuiToObjects()
 	end
 end
 
-local function updateCountsAndDisplay()
+local function updateDisplay()
 	-- Обновляем счетчики
 	updateChestCount()
 	updateItemCount()
 
 	-- Обновляем отображение названий
-	addBillboardGuiToObjects()
+	if isDisplayNames then
+		addBillboardGuiToObjects()
+	else
+		clearBillboards()
+	end
 end
 
 -- Обновление данных раз в 1 секунду
 spawn(function()
 	while true do
-		updateCountsAndDisplay()
-		wait(1)
+		updateDisplay()
+		wait(3)
 	end
 end)
 
--- Переключатель режима (если нужно)
-toggleHighlightButton.MouseButton1Click:Connect(function()
-	isHighlightEnabled = not isHighlightEnabled
-	if isHighlightEnabled then
-		toggleHighlightButton.Text = "[ON] Названия"
+-- Переключатель отображения названий
+toggleDisplayButton.MouseButton1Click:Connect(function()
+	isDisplayNames = not isDisplayNames
+	if isDisplayNames then
+		toggleDisplayButton.Text = "[ON] Названия"
 		addBillboardGuiToObjects()
 	else
-		toggleHighlightButton.Text = "[OFF] Названия"
+		toggleDisplayButton.Text = "[OFF] Названия"
 		clearBillboards()
 	end
 end)
