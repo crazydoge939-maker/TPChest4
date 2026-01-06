@@ -67,7 +67,7 @@ runService.RenderStepped:Connect(function()
 			startPos.X.Scale,
 			startPos.X.Offset + delta.X,
 			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
+			startPos.Y + delta.Y
 		)
 	end
 end)
@@ -98,9 +98,9 @@ toggleHighlightButton.Text = "[OFF] Подсветку"
 toggleHighlightButton.TextColor3 = Color3.new(1, 1, 1)
 toggleHighlightButton.Parent = panel
 
-local isHighlightEnabled = true -- состояние подсветки
+local isHighlightEnabled = false -- состояние подсветки выключено, так как будем показывать названия
 
--- Метки
+-- Метки для счетчиков
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
 chestCountLabel.Position = UDim2.new(0, 10, 0, 40)
@@ -125,14 +125,16 @@ itemCountLabel.TextScaled = true
 itemCountLabel.TextColor3 = Color3.new(1, 1, 1)
 itemCountLabel.Parent = panel
 
--- Таблица для хранения активных Highlight
-local activeHighlights = {}
+-- Таблица для хранения созданных BillboardGui
+local activeBillboards = {}
 
-local function clearHighlights()
-	for _, hl in ipairs(activeHighlights) do
-		if hl and hl.Parent then hl:Destroy() end
+local function clearBillboards()
+	for _, gui in ipairs(activeBillboards) do
+		if gui and gui.Parent then
+			gui:Destroy()
+		end
 	end
-	activeHighlights = {}
+	activeBillboards = {}
 end
 
 local function getObjectsByNames(names)
@@ -163,27 +165,37 @@ local function updateItemCount()
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
-local function addHighlightToObjects()
-	clearHighlights()
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") then
-			local name = model.Name
+local function addBillboardGuiToObjects()
+	clearBillboards()
+
+	for _, descendant in pairs(workspace:GetDescendants()) do
+		if descendant:IsA("Model") then
+			local name = descendant.Name
 			if table.find(ChestModels, name) or table.find(ItemModels, name) then
-				for _, part in pairs(model:GetChildren()) do
+				for _, part in pairs(descendant:GetChildren()) do
 					if part:IsA("BasePart") then
-						local highlight = Instance.new("Highlight")
-						highlight.Adornee = part
+						-- Создаем BillboardGui
+						local billboardGui = Instance.new("BillboardGui")
+						billboardGui.Size = UDim2.new(0, 100, 0, 40)
+						billboardGui.Adornee = part
+						billboardGui.AlwaysOnTop = true
+						billboardGui.Parent = part
+
+						-- Создаем текстовую метку
+						local textLabel = Instance.new("TextLabel")
+						textLabel.Size = UDim2.new(1, 0, 1, 0)
+						textLabel.BackgroundTransparency = 1
+						textLabel.Text = name
 						if table.find(ChestModels, name) then
-							highlight.FillColor = Color3.new(1, 0.6667, 0)
-							highlight.OutlineColor = Color3.new(1, 0.3333, 0)
-						elseif table.find(ItemModels, name) then
-							highlight.FillColor = Color3.new(0, 0, 1)
-							highlight.OutlineColor = Color3.new(0, 1, 1)
+							textLabel.TextColor3 = Color3.fromRGB(255, 165, 0) -- оранжевый для сундуков
+						else
+							textLabel.TextColor3 = Color3.fromRGB(0, 255, 255) -- синий для предметов
 						end
-						highlight.FillTransparency = 0.2
-						highlight.OutlineTransparency = 0
-						highlight.Parent = part
-						table.insert(activeHighlights, highlight)
+						textLabel.TextScaled = true
+						textLabel.Font = Enum.Font.SourceSansBold
+						textLabel.Parent = billboardGui
+
+						table.insert(activeBillboards, billboardGui)
 					end
 				end
 			end
@@ -191,22 +203,31 @@ local function addHighlightToObjects()
 	end
 end
 
-local function updateCountsAndHighlights()
+local function updateCountsAndDisplay()
 	-- Обновляем счетчики
 	updateChestCount()
 	updateItemCount()
-	-- Обновляем подсветку
-	if isHighlightEnabled then
-		addHighlightToObjects()
-	else
-		clearHighlights()
-	end
+
+	-- Обновляем отображение названий
+	addBillboardGuiToObjects()
 end
 
--- Обновление данных раз в 1 секунду для снижения лагов
+-- Обновление данных раз в 1 секунду
 spawn(function()
 	while true do
-		updateCountsAndHighlights()
+		updateCountsAndDisplay()
 		wait(1)
+	end
+end)
+
+-- Переключатель режима (если нужно)
+toggleHighlightButton.MouseButton1Click:Connect(function()
+	isHighlightEnabled = not isHighlightEnabled
+	if isHighlightEnabled then
+		toggleHighlightButton.Text = "[ON] Названия"
+		addBillboardGuiToObjects()
+	else
+		toggleHighlightButton.Text = "[OFF] Названия"
+		clearBillboards()
 	end
 end)
