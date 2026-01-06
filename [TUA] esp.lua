@@ -11,6 +11,7 @@ local ChestModels = {"Chest"}
 local ItemModels = {	
 	"Rainbow Star",
 	"Moon Fragment",
+	"Water Sphereite",	
 	"Meat",
 	"Rotting Meat",
 	"Heart",
