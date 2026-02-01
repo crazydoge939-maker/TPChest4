@@ -1,18 +1,17 @@
 local ChestModels = {
-	"Chest_p", "Dark Chest_p", "Light Chest_p",
+	"Chest_p", "Dark Chest_p", "Light Chest_p", "Skin Chest_p", "Heart Chest_p" -- добавьте сюда все названия сундуков
 }
 local ItemModels = {
-	"Rope_p", "Metal_p", "Wood_p", "Stone_p", "Meat_p", "Orb_p", "Cursed Orb_p", "Holy Orb_p",
-}
-local SpecialItems = {
-	"Heart Chest_p", "Rose_p", "Skin Chest_p",
+	"Rope_p", "Metal_p", "Wood_p", "Stone_p", "Meat_p", "Orb_p", "Cursed Orb_p", "Holy Orb_p", "Rose_p" -- добавьте сюда все названия предметов
 }
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
+
 local runService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local workspace = game:GetService("Workspace")
 
 local HeightMin = 113
@@ -33,8 +32,10 @@ panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 panel.Parent = screenGui
 
--- Перетаскивание панели
-local dragging, dragInput, dragStart, startPos
+-- Сделать панель перетаскиваемой
+local dragging = false
+local dragInput, dragStart, startPos
+
 panel.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
@@ -47,11 +48,13 @@ panel.InputBegan:Connect(function(input)
 		end)
 	end
 end)
+
 panel.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
 		dragInput = input
 	end
 end)
+
 runService.RenderStepped:Connect(function()
 	if dragging and dragInput then
 		local delta = dragInput.Position - dragStart
@@ -104,21 +107,7 @@ stopChestButton.TextColor3 = Color3.new(1, 1, 1)
 stopChestButton.Parent = panel
 stopChestButton.Visible = false
 
--- Кнопка для телепорта к особым вещам
-local tpSpecialButton = Instance.new("TextButton")
-tpSpecialButton.Size = UDim2.new(0.8, 0, 0, 40)
-tpSpecialButton.Position = UDim2.new(0.1, 0, 0, 180)
-tpSpecialButton.BackgroundColor3 = Color3.fromRGB(170, 170, 0)
-tpSpecialButton.BorderSizePixel = 2
-tpSpecialButton.BorderColor3 = Color3.new(1, 1, 1)
-tpSpecialButton.Font = Enum.Font.SourceSansBold
-tpSpecialButton.TextSize = 14
-tpSpecialButton.TextScaled = true
-tpSpecialButton.Text = "ТП к Особым"
-tpSpecialButton.TextColor3 = Color3.new(0, 0, 0)
-tpSpecialButton.Parent = panel
-
--- Кнопка переключения подсветки
+-- Кнопка переключения режима подсветки линий/подсветки
 local toggleHighlightButton = Instance.new("TextButton")
 toggleHighlightButton.Size = UDim2.new(0.8, 0, 0, 40)
 toggleHighlightButton.Position = UDim2.new(0.1, 0, 0, 225)
@@ -132,7 +121,7 @@ toggleHighlightButton.Text = "[OFF] Подсветку"
 toggleHighlightButton.TextColor3 = Color3.new(1, 1, 1)
 toggleHighlightButton.Parent = panel
 
-local isHighlightEnabled = true
+local isHighlightEnabled = true -- состояние подсветки
 
 -- Метки
 local chestCountLabel = Instance.new("TextLabel")
@@ -171,145 +160,204 @@ coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
 
--- Таблицы линий
+-- Линии (храним в таблицах)
 local linesToChests = {}
 local linesToItems = {}
-local linesToSpecial = {} -- для особых вещей
 
--- Функции для линий
+-- Функции для создания Attachment и Beam
 local function createAttachment(parent)
 	local att = Instance.new("Attachment")
 	att.Parent = parent
 	return att
 end
 
-local function createBeam(att0, att1, color)
+local function createBeam(attachment0, attachment1, color)
 	local beam = Instance.new("Beam")
-	beam.Attachment0 = att0
-	beam.Attachment1 = att1
+	beam.Attachment0 = attachment0
+	beam.Attachment1 = attachment1
 	beam.Color = ColorSequence.new(color)
 	beam.Width0 = 0.2
 	beam.Width1 = 0.2
 	beam.FaceCamera = true
-	beam.Parent = att0.Parent
+	beam.Parent = attachment0.Parent
 	return beam
 end
 
-local function clearLines(linesTable)
-	for _, data in ipairs(linesTable) do
-		if data then
-			if data.beam then data.beam:Destroy() end
-			if data.attTarget then data.attTarget:Destroy() end
-			if data.attPlayer then data.attPlayer:Destroy() end
+-- Функция для удаления всех линий
+local function clearAllLines(linesTable)
+	for _, lineData in ipairs(linesTable) do
+		if lineData then
+			if lineData.beam then lineData.beam:Destroy() end
+			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
+			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
 		end
 	end
 	table.clear(linesTable)
 end
 
+-- Обновление линий
 local function updateLines(targets, linesTable, color)
-	clearLines(linesTable)
+	clearAllLines(linesTable)
 	for _, target in ipairs(targets) do
-		local attPlayer = createAttachment(humanoidRootPart)
-		local attTarget = createAttachment(target)
-		local beam = createBeam(attPlayer, attTarget, color)
+		local attachmentPlayer = createAttachment(humanoidRootPart)
+		local attachmentTarget = createAttachment(target)
+		local beam = createBeam(attachmentPlayer, attachmentTarget, color)
 		if not isHighlightEnabled then
 			beam.Transparency = NumberSequence.new(1)
 		else
 			beam.Transparency = NumberSequence.new(0)
 		end
-		table.insert(linesTable, {beam=beam, attTarget=attTarget, attPlayer=attPlayer})
+		table.insert(linesTable, {
+			beam = beam,
+			attachmentTarget = attachmentTarget,
+			attachmentPlayer = attachmentPlayer
+		})
 	end
 end
 
--- Получение объектов по названиям
-local function getAllObjects(names)
-	local objs = {}
+-- Обновление координат
+runService.RenderStepped:Connect(function()
+	local pos = humanoidRootPart.Position
+	coordsLabel.Text = string.format("Координаты [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+end)
+
+-- Получение всех объектов по спискам названий
+local function getAllObjectsByNames(names)
+	local objects = {}
 	for _, model in pairs(workspace:GetDescendants()) do
 		if model:IsA("Model") and table.find(names, model.Name) then
 			for _, child in pairs(model:GetChildren()) do
 				if child:IsA("BasePart") then
-					table.insert(objs, child)
+					table.insert(objects, child)
 				end
 			end
 		end
 	end
-	return objs
+	return objects
 end
 
-local function updateCounts()
-	local chests = getAllObjects(ChestModels)
-	local items = getAllObjects(ItemModels)
-	chestCountLabel.Text = "Сундуков ["..#chests.."]"
-	itemCountLabel.Text = "Предметов ["..#items.."]"
+local function updateChestCount()
+	local chests = getAllObjectsByNames(ChestModels)
+	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
+end
+
+local function updateItemCount()
+	local items = getAllObjectsByNames(ItemModels)
+	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
 local activeHighlights = {}
+
 local function clearHighlights()
 	for _, hl in ipairs(activeHighlights) do
 		if hl and hl.Parent then hl:Destroy() end
 	end
 	activeHighlights = {}
 end
-local function addHighlights(names)
+
+local function addHighlightToObjects(names)
 	clearHighlights()
-	local objs = getAllObjects(names)
-	for _, obj in ipairs(objs) do
-		local hl = Instance.new("Highlight")
-		hl.Adornee = obj
-		hl.FillColor = Color3.new(1, 0.6667, 0) -- желтый
-		hl.OutlineColor = Color3.new(1, 0.6667, 0)
-		hl.FillTransparency = 0.2
-		hl.OutlineTransparency = 0
-		hl.Parent = obj
-		table.insert(activeHighlights, hl)
-	end
-end
-
-local teleportingSpecial = false
-local function teleportToSpecial()
-	if teleportingSpecial then return end
-	teleportingSpecial = true
-	local specials = getAllObjects(SpecialItems)
-	if #specials > 0 then
-		local target = specials[math.random(1, #specials)]
-		local y = target.Position.Y
-		if y >= HeightMin and y <= HeightMax then
-			humanoidRootPart.CFrame = CFrame.new(target.Position.X, y + 3, target.Position.Z)
+	local objects = getAllObjectsByNames(names)
+	for _, obj in ipairs(objects) do
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = obj
+		if table.find(ChestModels, obj.Parent.Name) then
+			highlight.FillColor = Color3.new(1, 0.6667, 0)
+			highlight.OutlineColor = Color3.new(1, 0.3333, 0)
+		else
+			highlight.FillColor = Color3.new(0, 0, 1)
+			highlight.OutlineColor = Color3.new(0, 1, 1)
 		end
+		highlight.FillTransparency = 0.2
+		highlight.OutlineTransparency = 0
+		highlight.Parent = obj
+		table.insert(activeHighlights, highlight)
 	end
-	teleportingSpecial = false
 end
 
-local function startTeleportSpecialCycle()
-	if teleportingSpecial then return end
-	teleportingSpecial = true
+local teleportingChest = false
+
+local function startTeleportChestCycle()
+	if teleportingChest then return end
+	teleportingChest = true
 	startChestButton.Visible = false
 	stopChestButton.Visible = true
+
 	coroutine.wrap(function()
-		while teleportingSpecial do
-			teleportToSpecial()
+		while teleportingChest do
+			local chests = getAllObjectsByNames(ChestModels)
+			local accessibleChests = {}
+			for _, chest in pairs(chests) do
+				local accessible = false
+				for _, part in pairs(chest:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= HeightMin and y <= HeightMax then
+							accessible = true
+							break
+						end
+					end
+				end
+				if accessible then table.insert(accessibleChests, chest) end
+			end
+			if #accessibleChests > 0 then
+				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
+				for _, part in pairs(selectedChest:GetChildren()) do
+					if part:IsA("BasePart") then
+						local y = part.Position.Y
+						if y >= HeightMin and y <= HeightMax then
+							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
+							break
+						end
+					end
+				end
+			end
 			wait(0.1)
 		end
 	end)()
 end
 
-local function stopTeleportSpecial()
-	teleportingSpecial = false
+local function setLinesVisibility(enabled)
+	for _, lineData in ipairs(linesToChests) do
+		if lineData then
+			if lineData.beam then
+				lineData.beam.Enabled = enabled
+			end
+		end
+	end
+	for _, lineData in ipairs(linesToItems) do
+		if lineData then
+			if lineData.beam then
+				lineData.beam.Enabled = enabled
+			end
+		end
+	end
+end
+
+local function setLinesTransparency(linesTable, transparencyValue)
+	for _, lineData in ipairs(linesTable) do
+		if lineData and lineData.beam then
+			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
+		end
+	end
+end
+
+local function stopTeleportChestCycle()
+	teleportingChest = false
 	startChestButton.Visible = true
 	stopChestButton.Visible = false
 end
 
--- Обработчики кнопок
-toggleHighlightButton.MouseButton1Click = nil
-toggleHighlightButton.Activated:Connect(function()
+-- Обработка кнопки переключения подсветки
+toggleHighlightButton.MouseButton1Click:Connect(function()
 	isHighlightEnabled = not isHighlightEnabled
 	if isHighlightEnabled then
 		toggleHighlightButton.Text = "[OFF] Подсветку"
 		setLinesVisibility(true)
 		setLinesTransparency(linesToChests, 0)
 		setLinesTransparency(linesToItems, 0)
-		addHighlights(ChestModels)
-		addHighlights(ItemModels)
+		addHighlightToObjects(ChestModels)
+		addHighlightToObjects(ItemModels)
 	else
 		toggleHighlightButton.Text = "[ON] Подсветку"
 		setLinesVisibility(false)
@@ -319,31 +367,17 @@ toggleHighlightButton.Activated:Connect(function()
 	end
 end)
 
-startChestButton.Activated = nil
-startChestButton.MouseButton1Click = nil
-startChestButton.Activated:Connect(function()
-	startTeleportChestCycle()
-end)
+startChestButton.Activated:Connect(startTeleportChestCycle)
+stopChestButton.Activated:Connect(stopTeleportChestCycle)
 
-stopChestButton.Activated = nil
-stopChestButton.MouseButton1Click = nil
-stopChestButton.Activated:Connect(function()
-	stopTeleportChestCycle()
-end)
-
-tpSpecialButton.Activated = nil
-tpSpecialButton.MouseButton1Click = nil
-tpSpecialButton.Activated:Connect(function()
-	teleportToSpecial()
-end)
-
--- Циклы обновления
+-- Обновление и подсветка каждые 0.1 сек
 spawn(function()
 	while true do
-		updateCounts()
+		updateChestCount()
+		updateItemCount()
 		if isHighlightEnabled then
-			addHighlights(ChestModels)
-			addHighlights(ItemModels)
+			addHighlightToObjects(ChestModels)
+			addHighlightToObjects(ItemModels)
 		else
 			clearHighlights()
 		end
@@ -351,12 +385,15 @@ spawn(function()
 	end
 end)
 
-local lastUpdate = 0
+-- Обновление линий каждые 0.2 сек
+local lastUpdateTime = 0
 runService.RenderStepped:Connect(function()
 	local now = tick()
-	if now - lastUpdate >= 0.2 then
-		updateLines(getAllObjects(ChestModels), linesToChests, Color3.new(1, 0.6667, 0))
-		updateLines(getAllObjects(ItemModels), linesToItems, Color3.new(1, 0.6667, 0))
-		lastUpdate = now
+	if now - lastUpdateTime >= 0.2 then
+		local chests = getAllObjectsByNames(ChestModels)
+		local items = getAllObjectsByNames(ItemModels)
+		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
+		updateLines(items, linesToItems, Color3.new(0, 1, 1))
+		lastUpdateTime = now
 	end
 end)
