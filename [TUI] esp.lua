@@ -367,8 +367,8 @@ toggleHighlightButton.MouseButton1Click:Connect(function()
     end
 end)
 
-startChestButton.MouseButton1Click = startTeleportChestCycle
-stopChestButton.MouseButton1Click = stopTeleportChestCycle
+startChestButton.Activated:Connect(startTeleportChestCycle)
+stopChestButton.Activated:Connect(stopTeleportChestCycle)
 
 -- Обновление и подсветка каждые 0.1 сек
 spawn(function()
