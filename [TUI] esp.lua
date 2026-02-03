@@ -259,6 +259,7 @@ RunService.Heartbeat:Connect(function()
 						for _, descendant in ipairs(model:GetDescendants()) do
 							if descendant:IsA("ProximityPrompt") then
 								-- активируем Prompt мгновенно
+								descendant.MaxActivationDistance = 30
 								descendant.Enabled = true
 								-- вызываем InputHoldBegin() для немедленной активации
 								descendant:InputHoldBegin()
