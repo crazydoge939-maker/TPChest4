@@ -7,7 +7,7 @@ local player = Players.LocalPlayer
 local workspace = game.Workspace
 
 local toggleChests = false -- Включено или выключено телепорт к сундукам
-local toggleOthers = false -- Включено или выключено телепорт к предметам
+local toggleother = false -- Включено или выключено телепорт к предметам
 local cooldownTime = 1 -- по умолчанию 1 секунда
 local lastTPTime = 0
 
@@ -74,7 +74,7 @@ local function createButton(text, position)
 end
 
 local btnChests = createButton("TP Сундуки [OFF]", UDim2.new(0, 10, 0, 70))
-local btnOthers = createButton("TP Предметы [OFF]", UDim2.new(0, 110, 0, 70))
+local btnother = createButton("TP Предметы [OFF]", UDim2.new(0, 110, 0, 70))
 
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0, 60, 0, 50)
@@ -246,11 +246,11 @@ end
 
 -- Обновляем модели и ставим статус
 local chestsModels = {}
-local othersModels = {}
+local otherModels = {}
 
 local function refreshModels()
 	chestsModels = {}
-	othersModels = {}
+	otherModels = {}
 	-- Очистка старых BillboardGui
 	for _, model in pairs(workspace:GetChildren()) do
 		if model:IsA("Model") then
@@ -278,10 +278,10 @@ local function refreshModels()
 						createBillboard(m, name, Color3.fromRGB(255, 165, 0), allowed)
 					end
 				end
-			elseif model.Name:lower() == "others" then
+			elseif model.Name:lower() == "other" then
 				for _, m in pairs(model:GetChildren()) do
 					if m:IsA("Model") then
-						table.insert(othersModels, m)
+						table.insert(otherModels, m)
 						local name = m.Name
 						local allowed = false
 						for _, n in ipairs(allowedModels) do
@@ -299,7 +299,7 @@ local function refreshModels()
 end
 
 local function updateCount()
-	countLabel.Text = "Сундуки [" .. tostring(#chestsModels) .. "]" .. " | Предметы [" .. tostring(#othersModels) .. "]"
+	countLabel.Text = "Сундуки [" .. tostring(#chestsModels) .. "]" .. " | Предметы [" .. tostring(#otherModels) .. "]"
 end
 
 refreshModels()
@@ -310,21 +310,21 @@ btnChests.MouseButton1Click:Connect(function()
 		toggleChests = false
 	else
 		toggleChests = true
-		toggleOthers = false
+		toggleother = false
 	end
 	btnChests.Text = toggleChests and "TP Сундуки [ON]" or "TP Сундуки [OFF]"
-	btnOthers.Text = toggleOthers and "TP Предметы [ON]" or "TP Предметы [OFF]"
+	btnother.Text = toggleother and "TP Предметы [ON]" or "TP Предметы [OFF]"
 end)
 
-btnOthers.MouseButton1Click:Connect(function()
-	if toggleOthers then
-		toggleOthers = false
+btnother.MouseButton1Click:Connect(function()
+	if toggleother then
+		toggleother = false
 	else
-		toggleOthers = true
+		toggleother = true
 		toggleChests = false
 	end
 	btnChests.Text = toggleChests and "TP Сундуки [ON]" or "TP Сундуки [OFF]"
-	btnOthers.Text = toggleOthers and "TP Предметы [ON]" or "TP Предметы"
+	btnother.Text = toggleother and "TP Предметы [ON]" or "TP Предметы"
 end)
 
 -- Кулдаун
@@ -347,14 +347,14 @@ RunService.RenderStepped:Connect(function()
 	coordsLabel.Text = string.format("Coords: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
 
 	-- Телепорт, если модели разрешены и находятся в пределах высоты
-	if (toggleChests or toggleOthers) then
+	if (toggleChests or toggleother) then
 		local now = tick()
 		if now - lastTPTime >= cooldownTime then
 			local targetModels = {}
 			if toggleChests then
 				targetModels = chestsModels
-			elseif toggleOthers then
-				targetModels = othersModels
+			elseif toggleother then
+				targetModels = otherModels
 			end
 			if #targetModels > 0 then
 				local targetModel = targetModels[math.random(1, #targetModels)]
