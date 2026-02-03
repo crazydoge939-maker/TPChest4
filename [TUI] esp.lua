@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -8,7 +9,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
 
 local MaxHeight = 210
-local MinHeight = 113
+local MinHeight = -113
 
 -- Переменные для телепортации
 local teleportChests = false
@@ -231,6 +232,16 @@ local function activatePrompt(prompt)
 end
 
 -- Основной цикл
+local function getModelsByName(name)
+	local models = {}
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
+			table.insert(models, obj)
+		end
+	end
+	return models
+end
+
 RunService.Heartbeat:Connect(function()
 	-- Обновляем координаты
 	updateCoords()
@@ -241,14 +252,16 @@ RunService.Heartbeat:Connect(function()
 	if teleportChests or teleportOthers then
 		if now - lastTpTime >= cooldown then
 			local modelsToTp = {}
+
 			if teleportChests then
-				local chestsModels = findModels("chests")
+				local chestsModels = getModelsByName("chests")
 				for _, m in ipairs(chestsModels) do
 					table.insert(modelsToTp, m)
 				end
 			end
+
 			if teleportOthers then
-				local otherModels = findModels("other")
+				local otherModels = getModelsByName("other")
 				for _, m in ipairs(otherModels) do
 					table.insert(modelsToTp, m)
 				end
@@ -258,32 +271,26 @@ RunService.Heartbeat:Connect(function()
 				local targetModel = modelsToTp[math.random(1, #modelsToTp)]
 				local hrp = character:FindFirstChild("HumanoidRootPart")
 				if hrp then
-					-- телепорт
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local targetY = targetPart.Position.Y
-						if targetY >= MinHeight and targetY <= MaxHeight then
-							local newY = targetY
-							if newY < MinHeight then newY = MinHeight end
-							if newY > MaxHeight then newY = MaxHeight end
-							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
-							lastTpTime = now
+						local newY = math.clamp(targetY, MinHeight, MaxHeight)
+						hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
+						lastTpTime = now
 
-							-- отключить коллизию у HumanoidRootPart
-							disableCollision(hrp)
+						disableCollision(hrp)
 
-							-- найти и отключить коллизию у ближайшего объекта
-							local radius = 105 -- радиус поиска ближайшего объекта
-							local closestPart = findClosestObject(hrp.Position, radius)
-							if closestPart then
-								disableCollision(closestPart)
-							end
+						local radius = 105
+						local closestPart = findClosestObject(hrp.Position, radius)
+						if closestPart then
+							disableCollision(closestPart)
 						end
 					end
 				end
 			end
 		end
 	end
+
 
 	-- Проверка и автоматическая активация промптов
 	if promptAutoActivate then
