@@ -8,7 +8,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
 
 local MaxHeight = 210
-local MinHeight = 113
+local MinHeight = -113
 
 -- Переменные для телепортации
 local teleportChests = false
@@ -107,7 +107,7 @@ local chestsCountLabel = createTextLabelWithOutline("Сундуков [", UDim2.
 local othersCountLabel = createTextLabelWithOutline("Предметов [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 115, 0, 40), mainFrame)
 
 -- Кнопка для включения/выключения автоподтверждения Prompts
-local togglePromptBtn = createButtonWithOutline("Авто сбор [Вкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
+local togglePromptBtn = createButtonWithOutline("Авто сбор [Выкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
 
 local promptAutoActivate = false -- состояние автоподтверждения Prompts
 
@@ -258,10 +258,10 @@ RunService.Heartbeat:Connect(function()
 					if model:IsA("Model") and model.Name == modelName then
 						for _, descendant in ipairs(model:GetDescendants()) do
 							if descendant:IsA("ProximityPrompt") then
-								local distance = (playerChar.HumanoidRootPart.Position - descendant.Parent.Position).magnitude
-								if distance <= descendant.MaxActivationDistance then
-									activatePrompt(descendant)
-								end
+								-- активируем Prompt мгновенно
+								descendant.Enabled = true
+								-- вызываем InputHoldBegin() для немедленной активации
+								descendant:InputHoldBegin()
 							end
 						end
 					end
