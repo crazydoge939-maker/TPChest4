@@ -1,3 +1,4 @@
+
 -- Вставьте этот скрипт в StarterPlayerScripts
 
 local RunService = game:GetService("RunService")
@@ -110,7 +111,7 @@ countLabel.Parent = MainPanel
 -- Создаем мини-панель для включения/выключения телепорта
 local MiniPanelSize = 4 -- 6x6
 local MiniPanel = Instance.new("Frame")
-MiniPanel.Size = UDim2.new(0, 2*40, 0, 2*40) -- 240x240
+MiniPanel.Size = UDim2.new(0, 6*40, 0, 6*40) -- 240x240
 MiniPanel.Position = UDim2.new(0, 450, 0, 100)
 MiniPanel.BackgroundColor3 = Color3.fromRGB(60,60,60)
 MiniPanel.BorderSizePixel = 2
@@ -158,8 +159,25 @@ end)
 
 -- Создаем кнопки внутри мини-панели
 local allowedModels = {
-	"other",
-	"chests",
+	"Chest_p",
+	"Dark Chest_p",
+	"Light Chest_p",
+	"Skin Chest_p",
+	"Heart Chest_p",
+	"Wood_p",
+	"Stone_p",
+	"Metal_p",
+	"Rusty Metal_p",
+	"Meat_p",
+	"Rope_p",
+	"Line Paper_p",
+	"Leather_p",
+	"Meat_p",
+	"Holy Chain_p",
+	"Shattered Chain_p",
+	"Orb_p",
+	"Holy Orb_p",
+	"Cursed Orb_p",
 }
 
 local function createMiniButton(name, row, col)
@@ -246,7 +264,8 @@ local function refreshModels()
 	end
 	for _, model in pairs(workspace:GetChildren()) do
 		if model:IsA("Model") then
-			if model.Name:lower() == "chests" then
+			local nameLower = model.Name:lower()
+			if nameLower == "chests" then
 				for _, m in pairs(model:GetChildren()) do
 					if m:IsA("Model") then
 						table.insert(chestsModels, m)
@@ -261,7 +280,7 @@ local function refreshModels()
 						createBillboard(m, name, Color3.fromRGB(255, 165, 0), allowed)
 					end
 				end
-			elseif model.Name:lower() == "other" then
+			elseif nameLower == "other" then
 				for _, m in pairs(model:GetChildren()) do
 					if m:IsA("Model") then
 						table.insert(otherModels, m)
