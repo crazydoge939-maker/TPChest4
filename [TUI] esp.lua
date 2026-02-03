@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -161,6 +160,11 @@ local function findClosestObject(position, radius)
 end
 
 local function createBillboard(model)
+	-- Проверяем, есть ли уже BillboardGui у модели
+	if model:FindFirstChildOfClass("BillboardGui") then
+		return
+	end
+
 	local attachPart = nil
 	for _, part in ipairs(model:GetChildren()) do
 		if part:IsA("BasePart") then
@@ -168,14 +172,18 @@ local function createBillboard(model)
 			break
 		end
 	end
+
 	if not attachPart then
 		warn("Не найдена BasePart в модели: " .. model.Name)
 		return
 	end
+
 	local billboard = Instance.new("BillboardGui")
 	billboard.Size = UDim2.new(0, 100, 0, 50)
 	billboard.Adornee = attachPart
 	billboard.AlwaysOnTop = true
+	-- Можно задать уникальное имя, например, используя путь
+	billboard.Name = "Billboard_" .. model:GetFullName()
 	billboard.Parent = model
 
 	local textLabel = Instance.new("TextLabel")
@@ -197,16 +205,30 @@ local function createBillboard(model)
 	textLabel.Parent = billboard
 end
 
+local modelsCache = {
+	chests = {},
+	other = {}
+}
+
 local function findModels(name)
+	-- Обновляем список моделей для каждого типа
 	local models = {}
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
 			table.insert(models, obj)
 		end
 	end
+
+	-- Обновляем кэш
+	modelsCache[name] = models
+
+	-- Создаем BillboardGui для новых моделей, если их еще нет
 	for _, model in ipairs(models) do
-		createBillboard(model)
+		if not model:FindFirstChildOfClass("BillboardGui") then
+			createBillboard(model)
+		end
 	end
+
 	return models
 end
 
@@ -232,16 +254,6 @@ local function activatePrompt(prompt)
 end
 
 -- Основной цикл
-local function getModelsByName(name)
-	local models = {}
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
-			table.insert(models, obj)
-		end
-	end
-	return models
-end
-
 RunService.Heartbeat:Connect(function()
 	-- Обновляем координаты
 	updateCoords()
@@ -252,16 +264,14 @@ RunService.Heartbeat:Connect(function()
 	if teleportChests or teleportOthers then
 		if now - lastTpTime >= cooldown then
 			local modelsToTp = {}
-
 			if teleportChests then
-				local chestsModels = getModelsByName("chests")
+				local chestsModels = findModels("chests")
 				for _, m in ipairs(chestsModels) do
 					table.insert(modelsToTp, m)
 				end
 			end
-
 			if teleportOthers then
-				local otherModels = getModelsByName("other")
+				local otherModels = findModels("other")
 				for _, m in ipairs(otherModels) do
 					table.insert(modelsToTp, m)
 				end
@@ -271,26 +281,32 @@ RunService.Heartbeat:Connect(function()
 				local targetModel = modelsToTp[math.random(1, #modelsToTp)]
 				local hrp = character:FindFirstChild("HumanoidRootPart")
 				if hrp then
+					-- телепорт
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local targetY = targetPart.Position.Y
-						local newY = math.clamp(targetY, MinHeight, MaxHeight)
-						hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
-						lastTpTime = now
+						if targetY >= MinHeight and targetY <= MaxHeight then
+							local newY = targetY
+							if newY < MinHeight then newY = MinHeight end
+							if newY > MaxHeight then newY = MaxHeight end
+							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
+							lastTpTime = now
 
-						disableCollision(hrp)
+							-- отключить коллизию у HumanoidRootPart
+							disableCollision(hrp)
 
-						local radius = 105
-						local closestPart = findClosestObject(hrp.Position, radius)
-						if closestPart then
-							disableCollision(closestPart)
+							-- найти и отключить коллизию у ближайшего объекта
+							local radius = 105 -- радиус поиска ближайшего объекта
+							local closestPart = findClosestObject(hrp.Position, radius)
+							if closestPart then
+								disableCollision(closestPart)
+							end
 						end
 					end
 				end
 			end
 		end
 	end
-
 
 	-- Проверка и автоматическая активация промптов
 	if promptAutoActivate then
