@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local workspace = game.Workspace
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -9,19 +10,26 @@ local camera = workspace.CurrentCamera
 local MaxHeight = 210
 local MinHeight = 113
 
+-- Переменные для телепортации
+local teleportChests = false
+local teleportOthers = false
+local lastTpTime = 0
+
+-- Переменная для автопрогика
+local enabledPrompt = true
+
+-- Создаем GUI для управления
 local gui = Instance.new("ScreenGui")
-gui.Name = "TeleportGUI"
+gui.Name = "TeleportAndPromptControl"
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Основная панель
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 220, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -125)
 mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 mainFrame.BorderSizePixel = 2
 mainFrame.Parent = gui
 
--- Возможность перемещать панель
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -41,121 +49,95 @@ end)
 
 mainFrame.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-		local delta = dragInput.Position - dragStart
+		local delta = input.Position - dragStart
 		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 	end
 end)
 
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Text = "Телепорт"
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.Parent = mainFrame
+local function createTextLabelWithOutline(text, size, position, parent)
+	local label = Instance.new("TextLabel")
+	label.Text = text
+	label.Size = size
+	label.Position = position
+	label.BackgroundColor3 = Color3.new(0, 0, 0)
+	label.TextColor3 = Color3.new(1,1,1)
+	label.TextStrokeColor3 = Color3.new(0,0,0)
+	label.TextStrokeTransparency = 0
+	label.Font = Enum.Font.Michroma
+	label.TextScaled = true
+	label.Parent = parent
+	return label
+end
 
--- Кнопки включения/выключения
-local toggleChests = Instance.new("TextButton")
-toggleChests.Text = "TP Сундуки"
-toggleChests.Size = UDim2.new(0.5, -5, 0, 30)
-toggleChests.Position = UDim2.new(0, 5, 0, 35)
-toggleChests.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-toggleChests.TextColor3 = Color3.new(1, 1, 1)
-toggleChests.Parent = mainFrame
+local function createButtonWithOutline(text, size, position, color, parent)
+	local button = Instance.new("TextButton")
+	button.Text = text
+	button.Size = size
+	button.Position = position
+	button.BackgroundColor3 = color
+	button.TextColor3 = Color3.new(1,1,1)
+	button.TextStrokeColor3 = Color3.new(0,0,0)
+	button.TextStrokeTransparency = 0
+	button.Font = Enum.Font.Michroma
+	button.TextScaled = true
+	button.Parent = parent
+	return button
+end
 
-local toggleOther = Instance.new("TextButton")
-toggleOther.Text = "TP Предметы"
-toggleOther.Size = UDim2.new(0.5, -5, 0, 30)
-toggleOther.Position = UDim2.new(0.5, 0, 0, 35)
-toggleOther.BackgroundColor3 = Color3.fromRGB(0, 0, 150)
-toggleOther.TextColor3 = Color3.new(1, 1, 1)
-toggleOther.Parent = mainFrame
+local title = createTextLabelWithOutline("AUTO TP", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 0), mainFrame)
 
--- Кулдаун настройка
-local cooldownLabel = Instance.new("TextLabel")
-cooldownLabel.Text = "КД (сек):"
-cooldownLabel.Size = UDim2.new(0, 80, 0, 20)
-cooldownLabel.Position = UDim2.new(0, 5, 0, 70)
-cooldownLabel.BackgroundTransparency = 1
-cooldownLabel.TextColor3 = Color3.new(1, 1, 1)
-cooldownLabel.Font = Enum.Font.SourceSans
-cooldownLabel.TextSize = 14
-cooldownLabel.Parent = mainFrame
+-- Телепорт кнопки
+local toggleChests = createButtonWithOutline("TP Сундуки", UDim2.new(0, 100, 0, 30), UDim2.new(0, 5, 0, 100), Color3.fromRGB(88, 29, 0), mainFrame)
+local toggleOther = createButtonWithOutline("TP Предметы", UDim2.new(0, 100, 0, 30), UDim2.new(0, 115, 0, 100), Color3.fromRGB(0, 0, 127), mainFrame)
 
 local cooldownBox = Instance.new("TextBox")
-cooldownBox.Text = "2" -- по умолчанию 2 сек
-cooldownBox.Size = UDim2.new(0, 50, 0, 20)
-cooldownBox.Position = UDim2.new(0, 85, 0, 70)
+cooldownBox.Text = "1"
+cooldownBox.PlaceholderText = "КД ТП"
+cooldownBox.Size = UDim2.new(0, 50, 0, 30)
+cooldownBox.Position = UDim2.new(0, 5, 0, 140)
 cooldownBox.BackgroundColor3 = Color3.fromRGB(255,255,255)
-cooldownBox.TextColor3 = Color3.new(0, 0, 0)
-cooldownBox.Font = Enum.Font.SourceSans
-cooldownBox.TextSize = 14
+cooldownBox.TextColor3 = Color3.new(0,0,0)
+cooldownBox.Font = Enum.Font.Michroma
+cooldownBox.TextScaled = true
 cooldownBox.Parent = mainFrame
 
--- Координаты игрока
-local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Text = "Координаты: "
-coordsLabel.Size = UDim2.new(1, -10, 0, 20)
-coordsLabel.Position = UDim2.new(0, 5, 0, 100)
-coordsLabel.BackgroundTransparency = 1
-coordsLabel.TextColor3 = Color3.new(1, 1, 1)
-coordsLabel.Font = Enum.Font.SourceSans
-coordsLabel.TextSize = 14
-coordsLabel.Parent = mainFrame
+local coordsLabel = createTextLabelWithOutline("Корды", UDim2.new(1, -10, 0, 20), UDim2.new(0, 5, 0, 180), mainFrame)
 
--- Количество моделей
-local chestsCountLabel = Instance.new("TextLabel")
-chestsCountLabel.Text = "Честов: 0"
-chestsCountLabel.Size = UDim2.new(0.5, -5, 0, 20)
-chestsCountLabel.Position = UDim2.new(0, 5, 0, 130)
-chestsCountLabel.BackgroundTransparency = 1
-chestsCountLabel.TextColor3 = Color3.new(1, 1, 1)
-chestsCountLabel.Font = Enum.Font.SourceSans
-chestsCountLabel.TextSize = 14
-chestsCountLabel.Parent = mainFrame
+local chestsCountLabel = createTextLabelWithOutline("Сундуков [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 5, 0, 40), mainFrame)
+local othersCountLabel = createTextLabelWithOutline("Предметов [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 115, 0, 40), mainFrame)
 
-local othersCountLabel = Instance.new("TextLabel")
-othersCountLabel.Text = "Предметов: 0"
-othersCountLabel.Size = UDim2.new(0.5, -5, 0, 20)
-othersCountLabel.Position = UDim2.new(0.5, 0, 0, 130)
-othersCountLabel.BackgroundTransparency = 1
-othersCountLabel.TextColor3 = Color3.new(1, 1, 1)
-othersCountLabel.Font = Enum.Font.SourceSans
-othersCountLabel.TextSize = 14
-othersCountLabel.Parent = mainFrame
+-- Кнопка для включения/выключения автоподтверждения Prompts
+local togglePromptBtn = createButtonWithOutline("Авто сбор [Вкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
 
--- Объявляем переменные для включения/выключения телепортации
-local teleportChests = false
-local teleportOthers = false
+local promptAutoActivate = false -- состояние автоподтверждения Prompts
 
--- Кулдаун
-local lastTpTime = 0
+togglePromptBtn.MouseButton1Click:Connect(function()
+	promptAutoActivate = not promptAutoActivate
+	togglePromptBtn.Text = "Авто сбор " .. (promptAutoActivate and "[Вкл]" or "[Выкл]")
+	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
+end)
 
+-- Переменные для телепорта
 local function getCooldown()
 	local cd = tonumber(cooldownBox.Text)
 	if cd == nil or cd < 0 then
-		return 2 -- по умолчанию
+		return 2
 	end
 	return cd
 end
 
--- Обработчики кнопок
 toggleChests.MouseButton1Click:Connect(function()
 	teleportChests = not teleportChests
-	toggleChests.BackgroundColor3 = teleportChests and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
+	toggleChests.BackgroundColor3 = teleportChests and Color3.fromRGB(255, 85, 0) or Color3.fromRGB(125, 0, 0)
 end)
 
 toggleOther.MouseButton1Click:Connect(function()
 	teleportOthers = not teleportOthers
-	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 0, 150)
+	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(0, 0, 127)
 end)
 
 -- Создаем BillboardGui над моделью
 local function createBillboard(model)
-	-- Попытка найти первый подходящий BasePart
 	local attachPart = nil
 	for _, part in ipairs(model:GetChildren()) do
 		if part:IsA("BasePart") then
@@ -163,13 +145,10 @@ local function createBillboard(model)
 			break
 		end
 	end
-
 	if not attachPart then
 		warn("Не найдена BasePart в модели: " .. model.Name)
 		return
 	end
-
-	-- Создаем BillboardGui
 	local billboard = Instance.new("BillboardGui")
 	billboard.Size = UDim2.new(0, 100, 0, 50)
 	billboard.Adornee = attachPart
@@ -184,19 +163,17 @@ local function createBillboard(model)
 	textLabel.TextStrokeTransparency = 0
 	textLabel.TextScaled = true
 
-	-- Установка цвета текста в зависимости от имени модели
 	if string.lower(model.Name) == "chests" then
-		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0) -- оранжевый
+		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
 	elseif string.lower(model.Name) == "other" then
-		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255) -- синий
+		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
 	else
-		textLabel.TextColor3 = Color3.new(1, 1, 1) -- белый по умолчанию
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
 	end
 
 	textLabel.Parent = billboard
 end
 
--- Функция поиска моделей
 local function findModels(name)
 	local models = {}
 	for _, obj in ipairs(workspace:GetDescendants()) do
@@ -204,27 +181,28 @@ local function findModels(name)
 			table.insert(models, obj)
 		end
 	end
-
-	-- Создаем BillboardGui для каждой модели
 	for _, model in ipairs(models) do
 		createBillboard(model)
 	end
-
 	return models
 end
 
--- Обновление счетчика моделей
 local function updateCounts()
 	local chestsModels = findModels("chests")
 	local otherModels = findModels("other")
-	chestsCountLabel.Text = "Честов: " .. #chestsModels
-	othersCountLabel.Text = "Предметов: " .. #otherModels
+	chestsCountLabel.Text = "Сундуков [" .. #chestsModels .. "]"
+	othersCountLabel.Text = "Предметов [" .. #otherModels .. "]"
 end
 
--- Обновление координат
 local function updateCoords()
 	local pos = character:FindFirstChild("HumanoidRootPart").Position
-	coordsLabel.Text = string.format("Координаты: X=%.1f Y=%.1f Z=%.1f", pos.X, pos.Y, pos.Z)
+	coordsLabel.Text = string.format("Корды [X=%.1f] [Y=%.1f] [Z=%.1f]", pos.X, pos.Y, pos.Z)
+end
+
+local function activatePrompt(prompt)
+	if prompt and prompt.Enabled then
+		prompt:InputHoldBegin()
+	end
 end
 
 -- Основной цикл
@@ -257,11 +235,35 @@ RunService.Heartbeat:Connect(function()
 				if hrp then
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
-						local newY = targetPart.Position.Y
-						if newY <  MinHeight then newY =  MinHeight end
-						if newY > MaxHeight then newY = MaxHeight end
-						hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
-						lastTpTime = now
+						local targetY = targetPart.Position.Y
+						if targetY >= MinHeight and targetY <= MaxHeight then
+							local newY = targetY
+							if newY < MinHeight then newY = MinHeight end
+							if newY > MaxHeight then newY = MaxHeight end
+							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
+							lastTpTime = now
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Проверка и активация Prompts
+	if promptAutoActivate then
+		local playerChar = game.Players.LocalPlayer.Character
+		if playerChar and playerChar:FindFirstChild("HumanoidRootPart") then
+			for _, modelName in ipairs({"chests", "other"}) do
+				for _, model in ipairs(workspace:GetChildren()) do
+					if model:IsA("Model") and model.Name == modelName then
+						for _, descendant in ipairs(model:GetDescendants()) do
+							if descendant:IsA("ProximityPrompt") then
+								local distance = (playerChar.HumanoidRootPart.Position - descendant.Parent.Position).magnitude
+								if distance <= descendant.MaxActivationDistance then
+									activatePrompt(descendant)
+								end
+							end
+						end
 					end
 				end
 			end
@@ -269,17 +271,15 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- Обновляем счетчики при запуске
+-- Обновление счетчиков и координат
 updateCounts()
+updateCoords()
 
--- Обновляем счетчики каждую секунду
-while true do
-	wait(1)
-	updateCounts()
-end
-
--- Обновляем координаты каждую секунду
-while true do
-	wait(1)
-	updateCoords()
-end
+-- Таймеры для обновления данных
+coroutine.wrap(function()
+	while true do
+		wait(1)
+		updateCounts()
+		updateCoords()
+	end
+end)()
