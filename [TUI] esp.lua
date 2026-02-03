@@ -1,399 +1,390 @@
-local ChestModels = {
-	"Chest_p", "Dark Chest_p", "Light Chest_p", "Skin Chest_p", "Heart Chest_p" -- добавьте сюда все названия сундуков
-}
-local ItemModels = {
-	"Rope_p", "Metal_p", "Wood_p", "Stone_p", "Meat_p", "Orb_p", "Cursed Orb_p", "Holy Orb_p", "Rose_p" -- добавьте сюда все названия предметов
-}
+-- Вставьте этот скрипт в StarterPlayerScripts
 
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local workspace = game.Workspace
 
-local runService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local workspace = game:GetService("Workspace")
+local toggleChests = false -- Включено или выключено телепорт к сундукам
+local toggleOthers = false -- Включено или выключено телепорт к предметам
+local cooldownTime = 1 -- по умолчанию 1 секунда
+local lastTPTime = 0
 
-local HeightMin = 113
-local HeightMax = 210
+local MaxHeight = 210
+local MinHeight = 113
 
--- Создаем ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TeleportChestPanel"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Создаем основную GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportGUI"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Создаем основную панель
-local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 265)
-panel.Position = UDim2.new(0.5, -100, 0.5, -150)
-panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-panel.BorderSizePixel = 4
-panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
-panel.Parent = screenGui
+local MainPanel = Instance.new("Frame")
+MainPanel.Size = UDim2.new(0, 330, 0, 190)
+MainPanel.Position = UDim2.new(0, 100, 0, 100)
+MainPanel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainPanel.BorderSizePixel = 0
+MainPanel.Parent = ScreenGui
 
--- Сделать панель перетаскиваемой
+-- Создаем перетаскиваемую часть для основной панели
 local dragging = false
 local dragInput, dragStart, startPos
 
-panel.InputBegan:Connect(function(input)
+MainPanel.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		dragStart = input.Position
-		startPos = panel.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
+		startPos = MainPanel.Position
 	end
 end)
 
-panel.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+MainPanel.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+MainPanel.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		dragInput = input
 	end
 end)
 
-runService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function()
 	if dragging and dragInput then
 		local delta = dragInput.Position - dragStart
-		panel.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
+		MainPanel.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
 	end
 end)
 
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.BorderSizePixel = 0
-title.Text = "AUTO FARM"
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.TextScaled = true
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Parent = panel
+-- Создаем кнопку для "TP Сундуки"
+local function createButton(text, position)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 90, 0, 50)
+	btn.Position = position
+	btn.Text = text
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextScaled = true
+	btn.BorderSizePixel = 0
+	btn.Parent = MainPanel
+	return btn
+end
 
--- Кнопки [Сундуки]
-local startChestButton = Instance.new("TextButton")
-startChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-startChestButton.Position = UDim2.new(0.1, 0, 0, 130)
-startChestButton.BackgroundColor3 = Color3.fromRGB(0, 130, 0)
-startChestButton.BorderSizePixel = 2
-startChestButton.BorderColor3 = Color3.new(1, 1, 1)
-startChestButton.Font = Enum.Font.SourceSansBold
-startChestButton.TextSize = 16
-startChestButton.TextScaled = true
-startChestButton.Text = "Старт [Сундуки]"
-startChestButton.TextColor3 = Color3.new(1, 1, 1)
-startChestButton.Parent = panel
+local btnChests = createButton("TP Сундуки [OFF]", UDim2.new(0, 10, 0, 70))
+local btnOthers = createButton("TP Предметы [OFF]", UDim2.new(0, 110, 0, 70))
 
-local stopChestButton = Instance.new("TextButton")
-stopChestButton.Size = UDim2.new(0.8, 0, 0, 40)
-stopChestButton.Position = UDim2.new(0.1, 0, 0, 130)
-stopChestButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-stopChestButton.BorderSizePixel = 2
-stopChestButton.BorderColor3 = Color3.new(1, 1, 1)
-stopChestButton.Font = Enum.Font.SourceSansBold
-stopChestButton.TextSize = 16
-stopChestButton.TextScaled = true
-stopChestButton.Text = "Стоп [Сундуки]"
-stopChestButton.TextColor3 = Color3.new(1, 1, 1)
-stopChestButton.Parent = panel
-stopChestButton.Visible = false
-
--- Кнопка переключения режима подсветки линий/подсветки
-local toggleHighlightButton = Instance.new("TextButton")
-toggleHighlightButton.Size = UDim2.new(0.8, 0, 0, 40)
-toggleHighlightButton.Position = UDim2.new(0.1, 0, 0, 225)
-toggleHighlightButton.BackgroundColor3 = Color3.fromRGB(0, 0, 170)
-toggleHighlightButton.BorderSizePixel = 2
-toggleHighlightButton.BorderColor3 = Color3.new(1, 1, 1)
-toggleHighlightButton.Font = Enum.Font.SourceSansBold
-toggleHighlightButton.TextSize = 14
-toggleHighlightButton.TextScaled = true
-toggleHighlightButton.Text = "[OFF] Подсветку"
-toggleHighlightButton.TextColor3 = Color3.new(1, 1, 1)
-toggleHighlightButton.Parent = panel
-
-local isHighlightEnabled = true -- состояние подсветки
-
--- Метки
-local chestCountLabel = Instance.new("TextLabel")
-chestCountLabel.Size = UDim2.new(0, 80, 0, 80)
-chestCountLabel.Position = UDim2.new(0, 10, 0, 40)
-chestCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-chestCountLabel.BorderSizePixel = 0
-chestCountLabel.Text = "Сундуков [0]"
-chestCountLabel.Font = Enum.Font.SourceSans
-chestCountLabel.TextSize = 16
-chestCountLabel.TextScaled = true
-chestCountLabel.TextColor3 = Color3.new(1, 1, 1)
-chestCountLabel.Parent = panel
-
-local itemCountLabel = Instance.new("TextLabel")
-itemCountLabel.Size = UDim2.new(0, 80, 0, 80)
-itemCountLabel.Position = UDim2.new(0, 110, 0, 40)
-itemCountLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-itemCountLabel.BorderSizePixel = 0
-itemCountLabel.Text = "Предметов [0]"
-itemCountLabel.Font = Enum.Font.SourceSans
-itemCountLabel.TextSize = 16
-itemCountLabel.TextScaled = true
-itemCountLabel.TextColor3 = Color3.new(1, 1, 1)
-itemCountLabel.Parent = panel
+local cooldownBox = Instance.new("TextBox")
+cooldownBox.Size = UDim2.new(0, 60, 0, 50)
+cooldownBox.Position = UDim2.new(0, 265, 0, 10)
+cooldownBox.Text = tostring(cooldownTime)
+cooldownBox.PlaceholderText = "КД ТП"
+cooldownBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+cooldownBox.TextColor3 = Color3.fromRGB(255,255,255)
+cooldownBox.Font = Enum.Font.GothamBold
+cooldownBox.TextSize = 16
+cooldownBox.Parent = MainPanel
 
 local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 180)
-coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-coordsLabel.BorderSizePixel = 0
-coordsLabel.Text = "Координаты [X=0, Y=0, Z=0]"
-coordsLabel.Font = Enum.Font.SourceSans
+coordsLabel.Size = UDim2.new(0, 250, 0, 50)
+coordsLabel.Position = UDim2.new(0, 10, 0, 130)
+coordsLabel.Text = "Coords: "
+coordsLabel.BackgroundColor3 = Color3.fromRGB(30,30,30)
+coordsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+coordsLabel.Font = Enum.Font.GothamBold
 coordsLabel.TextSize = 14
-coordsLabel.TextScaled = true
-coordsLabel.TextColor3 = Color3.new(1, 1, 1)
-coordsLabel.Parent = panel
+coordsLabel.Parent = MainPanel
 
--- Линии (храним в таблицах)
-local linesToChests = {}
-local linesToItems = {}
+local countLabel = Instance.new("TextLabel")
+countLabel.Size = UDim2.new(0, 250, 0, 50)
+countLabel.Position = UDim2.new(0, 10, 0, 10)
+countLabel.Text = "Сундуки [0] | Предметы [0]"
+countLabel.BackgroundColor3 = Color3.fromRGB(30,30,30)
+countLabel.TextColor3 = Color3.fromRGB(255,255,255)
+countLabel.Font = Enum.Font.GothamBold
+countLabel.TextSize = 14
+countLabel.Parent = MainPanel
 
--- Функции для создания Attachment и Beam
-local function createAttachment(parent)
-	local att = Instance.new("Attachment")
-	att.Parent = parent
-	return att
-end
+-- Создаем мини-панель для включения/выключения телепорта
+local MiniPanelSize = 4 -- 6x6
+local MiniPanel = Instance.new("Frame")
+MiniPanel.Size = UDim2.new(0, 6*40, 0, 6*40) -- 240x240
+MiniPanel.Position = UDim2.new(0, 450, 0, 100)
+MiniPanel.BackgroundColor3 = Color3.fromRGB(60,60,60)
+MiniPanel.BorderSizePixel = 2
+MiniPanel.Parent = ScreenGui
 
-local function createBeam(attachment0, attachment1, color)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = attachment0
-	beam.Attachment1 = attachment1
-	beam.Color = ColorSequence.new(color)
-	beam.Width0 = 0.2
-	beam.Width1 = 0.2
-	beam.FaceCamera = true
-	beam.Parent = attachment0.Parent
-	return beam
-end
+-- Создаем кнопку для открытия/закрытия мини-панели
+local toggleMiniPanelBtn = createButton("[ON]/[OFF] мини-панель", UDim2.new(0,230,0,70))
+local miniPanelVisible = true
 
--- Функция для удаления всех линий
-local function clearAllLines(linesTable)
-	for _, lineData in ipairs(linesTable) do
-		if lineData then
-			if lineData.beam then lineData.beam:Destroy() end
-			if lineData.attachmentTarget then lineData.attachmentTarget:Destroy() end
-			if lineData.attachmentPlayer then lineData.attachmentPlayer:Destroy() end
-		end
-	end
-	table.clear(linesTable)
-end
-
--- Обновление линий
-local function updateLines(targets, linesTable, color)
-	clearAllLines(linesTable)
-	for _, target in ipairs(targets) do
-		local attachmentPlayer = createAttachment(humanoidRootPart)
-		local attachmentTarget = createAttachment(target)
-		local beam = createBeam(attachmentPlayer, attachmentTarget, color)
-		if not isHighlightEnabled then
-			beam.Transparency = NumberSequence.new(1)
-		else
-			beam.Transparency = NumberSequence.new(0)
-		end
-		table.insert(linesTable, {
-			beam = beam,
-			attachmentTarget = attachmentTarget,
-			attachmentPlayer = attachmentPlayer
-		})
-	end
-end
-
--- Обновление координат
-runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("Координаты [X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+toggleMiniPanelBtn.MouseButton1Click:Connect(function()
+	miniPanelVisible = not miniPanelVisible
+	MiniPanel.Visible = miniPanelVisible
 end)
 
--- Получение всех объектов по спискам названий
-local function getAllObjectsByNames(names)
-	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
+-- Сделаем мини-панель перетаскиваемой
+local miniDragging = false
+local miniDragInput, miniDragStart, miniStartPos
+
+MiniPanel.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		miniDragging = true
+		miniDragStart = input.Position
+		miniStartPos = MiniPanel.Position
+	end
+end)
+
+MiniPanel.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		miniDragging = false
+	end
+end)
+
+MiniPanel.InputChanged:Connect(function(input)
+	if miniDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		miniDragInput = input
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if miniDragging and miniDragInput then
+		local delta = miniDragInput.Position - miniDragStart
+		MiniPanel.Position = miniStartPos + UDim2.new(0, delta.X, 0, delta.Y)
+	end
+end)
+
+-- Создаем кнопки внутри мини-панели
+local allowedModels = {
+	"Chest_p",
+	"Dark Chest_p",
+	"Light Chest_p",
+	"Skin Chest_p",
+	"Heart Chest_p",
+	"Wood_p",
+	"Stone_p",
+	"Metal_p",
+	"Rusty Metal_p",
+	"Meat_p",
+	"Rope_p",
+	"Line Paper_p",
+	"Leather_p",
+	"Meat_p",
+	"Holy Chain",
+	"Shattered Chain",
+	"Orb_p",
+	"Holy Orb_p",
+	"Cursed Orb_p",
+}
+
+local function createMiniButton(name, row, col)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 40, 0, 40)
+	btn.Position = UDim2.new(0, col * 40, 0, row * 40)
+	btn.Text = name
+	btn.Font = Enum.Font.GothamBold
+	btn.TextScaled = true
+	btn.BackgroundColor3 = Color3.fromRGB(255,0,0) -- по умолчанию запрещено
+	btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+	btn.BorderSizePixel = 1
+	btn.Parent = MiniPanel
+	return btn
+end
+
+local miniButtons = {}
+for i, name in ipairs(allowedModels) do
+	local row = math.floor((i-1)/6)
+	local col = (i-1) % 6
+	local btn = createMiniButton(name, row, col)
+	miniButtons[name] = btn
+end
+
+-- Создаем таблицы для статусов разрешения
+local modelStatus = {}
+for _, name in ipairs(allowedModels) do
+	modelStatus[name] = false -- по умолчанию выключены
+end
+
+-- Обработка нажатий кнопок мини-панели
+for name, btn in pairs(miniButtons) do
+	btn.MouseButton1Click:Connect(function()
+		modelStatus[name] = not modelStatus[name]
+		if modelStatus[name] then
+			btn.BackgroundColor3 = Color3.fromRGB(0,255,0) -- зеленый, разрешено
+		else
+			btn.BackgroundColor3 = Color3.fromRGB(255,0,0) -- красный, запрещено
+		end
+	end)
+end
+
+-- Функция для обновления текста BillboardGui с контуром
+local function createBillboard(model, name, color, allowed)
+	-- Удаляем существующие BillboardGui
+	for _, child in pairs(model:GetChildren()) do
+		if child:IsA("BillboardGui") then
+			child:Destroy()
+		end
+	end
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 150, 0, 50)
+	billboard.Adornee = model:FindFirstChildWhichIsA("BasePart")
+	billboard.AlwaysOnTop = true
+	billboard.Parent = model
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = name
+	textLabel.TextColor3 = color -- цвет текста остается неизменным
+	textLabel.TextStrokeColor3 = allowed and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0) -- цвет контура зависит от статуса
+	textLabel.TextStrokeTransparency = 0 -- делаем контур видимым
+	textLabel.Font = Enum.Font.GothamBold
+	textLabel.TextSize = 20
+	textLabel.Parent = billboard
+end
+
+-- Обновляем модели и ставим статус
+local chestsModels = {}
+local othersModels = {}
+
+local function refreshModels()
+	chestsModels = {}
+	othersModels = {}
+	-- Очистка старых BillboardGui
+	for _, model in pairs(workspace:GetChildren()) do
+		if model:IsA("Model") then
 			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") then
-					table.insert(objects, child)
+				if child:IsA("BillboardGui") then
+					child:Destroy()
 				end
 			end
 		end
 	end
-	return objects
-end
-
-local function updateChestCount()
-	local chests = getAllObjectsByNames(ChestModels)
-	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
-end
-
-local function updateItemCount()
-	local items = getAllObjectsByNames(ItemModels)
-	itemCountLabel.Text = "Предметов [" .. #items .. "]"
-end
-
-local activeHighlights = {}
-
-local function clearHighlights()
-	for _, hl in ipairs(activeHighlights) do
-		if hl and hl.Parent then hl:Destroy() end
-	end
-	activeHighlights = {}
-end
-
-local function addHighlightToObjects(names)
-	clearHighlights()
-	local objects = getAllObjectsByNames(names)
-	for _, obj in ipairs(objects) do
-		local highlight = Instance.new("Highlight")
-		highlight.Adornee = obj
-		if table.find(ChestModels, obj.Parent.Name) then
-			highlight.FillColor = Color3.new(1, 0.6667, 0)
-			highlight.OutlineColor = Color3.new(1, 0.3333, 0)
-		else
-			highlight.FillColor = Color3.new(0, 0, 1)
-			highlight.OutlineColor = Color3.new(0, 1, 1)
-		end
-		highlight.FillTransparency = 0.2
-		highlight.OutlineTransparency = 0
-		highlight.Parent = obj
-		table.insert(activeHighlights, highlight)
-	end
-end
-
-local teleportingChest = false
-
-local function startTeleportChestCycle()
-	if teleportingChest then return end
-	teleportingChest = true
-	startChestButton.Visible = false
-	stopChestButton.Visible = true
-
-	coroutine.wrap(function()
-		while teleportingChest do
-			local chests = getAllObjectsByNames(ChestModels)
-			local accessibleChests = {}
-			for _, chest in pairs(chests) do
-				local accessible = false
-				for _, part in pairs(chest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							accessible = true
-							break
+	for _, model in pairs(workspace:GetChildren()) do
+		if model:IsA("Model") then
+			if model.Name:lower() == "chests" then
+				for _, m in pairs(model:GetChildren()) do
+					if m:IsA("Model") then
+						table.insert(chestsModels, m)
+						local name = m.Name
+						local allowed = false
+						for _, n in ipairs(allowedModels) do
+							if n == name then
+								allowed = modelStatus[n]
+								break
+							end
 						end
+						createBillboard(m, name, Color3.fromRGB(255, 165, 0), allowed)
 					end
 				end
-				if accessible then table.insert(accessibleChests, chest) end
-			end
-			if #accessibleChests > 0 then
-				local selectedChest = accessibleChests[math.random(1, #accessibleChests)]
-				for _, part in pairs(selectedChest:GetChildren()) do
-					if part:IsA("BasePart") then
-						local y = part.Position.Y
-						if y >= HeightMin and y <= HeightMax then
-							humanoidRootPart.CFrame = CFrame.new(part.Position.X, y + 3, part.Position.Z)
-							break
+			elseif model.Name:lower() == "others" then
+				for _, m in pairs(model:GetChildren()) do
+					if m:IsA("Model") then
+						table.insert(othersModels, m)
+						local name = m.Name
+						local allowed = false
+						for _, n in ipairs(allowedModels) do
+							if n == name then
+								allowed = modelStatus[n]
+								break
+							end
 						end
+						createBillboard(m, name, Color3.fromRGB(0, 191, 255), allowed)
 					end
 				end
 			end
-			wait(0.1)
-		end
-	end)()
-end
-
-local function setLinesVisibility(enabled)
-	for _, lineData in ipairs(linesToChests) do
-		if lineData then
-			if lineData.beam then
-				lineData.beam.Enabled = enabled
-			end
-		end
-	end
-	for _, lineData in ipairs(linesToItems) do
-		if lineData then
-			if lineData.beam then
-				lineData.beam.Enabled = enabled
-			end
 		end
 	end
 end
 
-local function setLinesTransparency(linesTable, transparencyValue)
-	for _, lineData in ipairs(linesTable) do
-		if lineData and lineData.beam then
-			lineData.beam.Transparency = NumberSequence.new(transparencyValue)
-		end
-	end
+local function updateCount()
+	countLabel.Text = "Сундуки [" .. tostring(#chestsModels) .. "]" .. " | Предметы [" .. tostring(#othersModels) .. "]"
 end
 
-local function stopTeleportChestCycle()
-	teleportingChest = false
-	startChestButton.Visible = true
-	stopChestButton.Visible = false
-end
+refreshModels()
 
--- Обработка кнопки переключения подсветки
-toggleHighlightButton.MouseButton1Click:Connect(function()
-	isHighlightEnabled = not isHighlightEnabled
-	if isHighlightEnabled then
-		toggleHighlightButton.Text = "[OFF] Подсветку"
-		setLinesVisibility(true)
-		setLinesTransparency(linesToChests, 0)
-		setLinesTransparency(linesToItems, 0)
-		addHighlightToObjects(ChestModels)
-		addHighlightToObjects(ItemModels)
+-- Обработка основных переключателей
+btnChests.MouseButton1Click:Connect(function()
+	if toggleChests then
+		toggleChests = false
 	else
-		toggleHighlightButton.Text = "[ON] Подсветку"
-		setLinesVisibility(false)
-		setLinesTransparency(linesToChests, 1)
-		setLinesTransparency(linesToItems, 1)
-		clearHighlights()
+		toggleChests = true
+		toggleOthers = false
+	end
+	btnChests.Text = toggleChests and "TP Сундуки [ON]" or "TP Сундуки [OFF]"
+	btnOthers.Text = toggleOthers and "TP Предметы [ON]" or "TP Предметы [OFF]"
+end)
+
+btnOthers.MouseButton1Click:Connect(function()
+	if toggleOthers then
+		toggleOthers = false
+	else
+		toggleOthers = true
+		toggleChests = false
+	end
+	btnChests.Text = toggleChests and "TP Сундуки [ON]" or "TP Сундуки [OFF]"
+	btnOthers.Text = toggleOthers and "TP Предметы [ON]" or "TP Предметы"
+end)
+
+-- Кулдаун
+cooldownBox.FocusLost:Connect(function()
+	local val = tonumber(cooldownBox.Text)
+	if val and val >= 0 then
+		cooldownTime = val
+	else
+		cooldownBox.Text = tostring(cooldownTime)
 	end
 end)
 
-startChestButton.Activated:Connect(startTeleportChestCycle)
-stopChestButton.Activated:Connect(stopTeleportChestCycle)
+local playerCharacter = player.Character or player.CharacterAdded:Wait()
+local hrp = playerCharacter:WaitForChild("HumanoidRootPart")
+local lastTPTime = 0
 
--- Обновление и подсветка каждые 0.1 сек
-spawn(function()
-	while true do
-		updateChestCount()
-		updateItemCount()
-		if isHighlightEnabled then
-			addHighlightToObjects(ChestModels)
-			addHighlightToObjects(ItemModels)
-		else
-			clearHighlights()
+RunService.RenderStepped:Connect(function()
+	-- Обновляем координаты
+	local pos = hrp.Position
+	coordsLabel.Text = string.format("Coords: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+
+	-- Телепорт, если модели разрешены и находятся в пределах высоты
+	if (toggleChests or toggleOthers) then
+		local now = tick()
+		if now - lastTPTime >= cooldownTime then
+			local targetModels = {}
+			if toggleChests then
+				targetModels = chestsModels
+			elseif toggleOthers then
+				targetModels = othersModels
+			end
+			if #targetModels > 0 then
+				local targetModel = targetModels[math.random(1, #targetModels)]
+				local part = targetModel:FindFirstChildWhichIsA("BasePart")
+				if part then
+					local name = targetModel.Name
+					local allowed = false
+					for _, n in ipairs(allowedModels) do
+						if n == name then
+							allowed = modelStatus[n]
+							break
+						end
+					end
+					if allowed then
+						local targetPos = part.Position
+						-- Проверка высоты модели
+						if targetPos.Y >= MinHeight and targetPos.Y <= MaxHeight then
+							hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y, targetPos.Z)
+							lastTPTime = now
+						end
+					end
+				end
+			end
 		end
-		wait(0.1)
 	end
 end)
 
--- Обновление линий каждые 0.2 сек
-local lastUpdateTime = 0
-runService.RenderStepped:Connect(function()
-	local now = tick()
-	if now - lastUpdateTime >= 0.2 then
-		local chests = getAllObjectsByNames(ChestModels)
-		local items = getAllObjectsByNames(ItemModels)
-		updateLines(chests, linesToChests, Color3.new(1, 0.3333, 0))
-		updateLines(items, linesToItems, Color3.new(0, 1, 1))
-		lastUpdateTime = now
-	end
-end)
+-- Обновляем модели и счетчик периодически
+while true do
+	wait(1)
+	refreshModels()
+	updateCount()
+end
