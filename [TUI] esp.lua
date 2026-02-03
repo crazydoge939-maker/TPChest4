@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -8,7 +9,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
 
 local MaxHeight = 210
-local MinHeight = -113
+local MinHeight = 113
 
 -- Переменные для телепортации
 local teleportChests = false
@@ -107,7 +108,7 @@ local chestsCountLabel = createTextLabelWithOutline("Сундуков [", UDim2.
 local othersCountLabel = createTextLabelWithOutline("Предметов [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 115, 0, 40), mainFrame)
 
 -- Кнопка для включения/выключения автоподтверждения Prompts
-local togglePromptBtn = createButtonWithOutline("Авто сбор [Выкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
+local togglePromptBtn = createButtonWithOutline("Авто сбор [Вкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
 
 local promptAutoActivate = false -- состояние автоподтверждения Prompts
 
@@ -117,7 +118,6 @@ togglePromptBtn.MouseButton1Click:Connect(function()
 	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
 end)
 
--- Переменные для телепорта
 local function getCooldown()
 	local cd = tonumber(cooldownBox.Text)
 	if cd == nil or cd < 0 then
@@ -136,7 +136,6 @@ toggleOther.MouseButton1Click:Connect(function()
 	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(0, 0, 127)
 end)
 
--- Создаем BillboardGui над моделью
 local function createBillboard(model)
 	local attachPart = nil
 	for _, part in ipairs(model:GetChildren()) do
@@ -201,7 +200,10 @@ end
 
 local function activatePrompt(prompt)
 	if prompt and prompt.Enabled then
+		-- Имитируем удержание промпта
 		prompt:InputHoldBegin()
+		wait(0.2) -- небольшая задержка
+		prompt:InputHoldEnd()
 	end
 end
 
@@ -249,7 +251,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Проверка и активация Prompts
+	-- Проверка и автоматическая активация промптов
 	if promptAutoActivate then
 		local playerChar = game.Players.LocalPlayer.Character
 		if playerChar and playerChar:FindFirstChild("HumanoidRootPart") then
@@ -257,12 +259,13 @@ RunService.Heartbeat:Connect(function()
 				for _, model in ipairs(workspace:GetChildren()) do
 					if model:IsA("Model") and model.Name == modelName then
 						for _, descendant in ipairs(model:GetDescendants()) do
-							if descendant:IsA("ProximityPrompt") then
-								-- активируем Prompt мгновенно
-								descendant.MaxActivationDistance = 30
-								descendant.Enabled = true
-								-- вызываем InputHoldBegin() для немедленной активации
-								descendant:InputHoldBegin()
+							if descendant:IsA("ProximityPrompt") and descendant.Enabled then
+								descendant.HoldDuration = 0
+								descendant.MaxActivationDistance = 20
+								local distance = (playerChar.HumanoidRootPart.Position - descendant.Parent.Position).magnitude
+								if distance <= descendant.MaxActivationDistance then
+									activatePrompt(descendant)
+								end
 							end
 						end
 					end
