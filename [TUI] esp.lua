@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -136,6 +135,30 @@ toggleOther.MouseButton1Click:Connect(function()
 	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(0, 0, 127)
 end)
 
+local function disableCollision(part)
+	if part and part:IsA("Part") then
+		part.CanCollide = false
+		-- Можно добавить задержку для восстановления коллизий, если нужно
+	end
+end
+
+local function findClosestObject(position, radius)
+	local closestPart = nil
+	local closestDistance = math.huge
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Part")and obj.CanCollide then
+			local distance = (obj.Position - position).magnitude
+			if distance <= radius then
+				if distance < closestDistance then
+					closestDistance = distance
+					closestPart = obj
+				end
+			end
+		end
+	end
+	return closestPart
+end
+
 local function createBillboard(model)
 	local attachPart = nil
 	for _, part in ipairs(model:GetChildren()) do
@@ -235,6 +258,7 @@ RunService.Heartbeat:Connect(function()
 				local targetModel = modelsToTp[math.random(1, #modelsToTp)]
 				local hrp = character:FindFirstChild("HumanoidRootPart")
 				if hrp then
+					-- телепорт
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local targetY = targetPart.Position.Y
@@ -244,6 +268,16 @@ RunService.Heartbeat:Connect(function()
 							if newY > MaxHeight then newY = MaxHeight end
 							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
 							lastTpTime = now
+
+							-- отключить коллизию у HumanoidRootPart
+							disableCollision(hrp)
+
+							-- найти и отключить коллизию у ближайшего объекта
+							local radius = 105 -- радиус поиска ближайшего объекта
+							local closestPart = findClosestObject(hrp.Position, radius)
+							if closestPart then
+								disableCollision(closestPart)
+							end
 						end
 					end
 				end
