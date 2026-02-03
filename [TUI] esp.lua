@@ -110,14 +110,14 @@ countLabel.Parent = MainPanel
 -- Создаем мини-панель для включения/выключения телепорта
 local MiniPanelSize = 4 -- 6x6
 local MiniPanel = Instance.new("Frame")
-MiniPanel.Size = UDim2.new(0, 6*40, 0, 6*40) -- 240x240
+MiniPanel.Size = UDim2.new(0, 2*40, 0, 2*40) -- 240x240
 MiniPanel.Position = UDim2.new(0, 450, 0, 100)
 MiniPanel.BackgroundColor3 = Color3.fromRGB(60,60,60)
 MiniPanel.BorderSizePixel = 2
 MiniPanel.Parent = ScreenGui
 
 -- Создаем кнопку для открытия/закрытия мини-панели
-local toggleMiniPanelBtn = createButton("[ON]/[OFF] мини-панель", UDim2.new(0,230,0,70))
+local toggleMiniPanelBtn = createButton("[ON]/[OFF] Фильтер", UDim2.new(0,230,0,70))
 local miniPanelVisible = true
 
 toggleMiniPanelBtn.MouseButton1Click:Connect(function()
@@ -158,25 +158,8 @@ end)
 
 -- Создаем кнопки внутри мини-панели
 local allowedModels = {
-	"Chest_p",
-	"Dark Chest_p",
-	"Light Chest_p",
-	"Skin Chest_p",
-	"Heart Chest_p",
-	"Wood_p",
-	"Stone_p",
-	"Metal_p",
-	"Rusty Metal_p",
-	"Meat_p",
-	"Rope_p",
-	"Line Paper_p",
-	"Leather_p",
-	"Meat_p",
-	"Holy Chain_p",
-	"Shattered Chain_p",
-	"Orb_p",
-	"Holy Orb_p",
-	"Cursed Orb_p",
+	"other",
+	"chests",
 }
 
 local function createMiniButton(name, row, col)
