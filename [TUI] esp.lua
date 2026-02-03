@@ -1,3 +1,5 @@
+укрась панель и сделай компакнее
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -5,6 +7,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
+
+local MaxHeight = 210
+local MinHeight = -113
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "TeleportGUI"
@@ -150,6 +155,49 @@ toggleOther.MouseButton1Click:Connect(function()
 	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 0, 150)
 end)
 
+-- Создаем BillboardGui над моделью
+local function createBillboard(model)
+	-- Попытка найти первый подходящий BasePart
+	local attachPart = nil
+	for _, part in ipairs(model:GetChildren()) do
+		if part:IsA("BasePart") then
+			attachPart = part
+			break
+		end
+	end
+
+	if not attachPart then
+		warn("Не найдена BasePart в модели: " .. model.Name)
+		return
+	end
+
+	-- Создаем BillboardGui
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 100, 0, 50)
+	billboard.Adornee = attachPart
+	billboard.AlwaysOnTop = true
+	billboard.Parent = model
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Text = model.Name
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	textLabel.TextStrokeTransparency = 0
+	textLabel.TextScaled = true
+
+	-- Установка цвета текста в зависимости от имени модели
+	if string.lower(model.Name) == "chests" then
+		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0) -- оранжевый
+	elseif string.lower(model.Name) == "other" then
+		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255) -- синий
+	else
+		textLabel.TextColor3 = Color3.new(1, 1, 1) -- белый по умолчанию
+	end
+
+	textLabel.Parent = billboard
+end
+
 -- Функция поиска моделей
 local function findModels(name)
 	local models = {}
@@ -158,27 +206,13 @@ local function findModels(name)
 			table.insert(models, obj)
 		end
 	end
+
+	-- Создаем BillboardGui для каждой модели
+	for _, model in ipairs(models) do
+		createBillboard(model)
+	end
+
 	return models
-end
-
--- Создаем BillboardGui над моделью
-local function createBillboard(model)
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 100, 0, 50)
-	billboard.Adornee = model:FindFirstChildWhichIsA("BasePart") -- прикрепляем к первому базовому объекту
-	billboard.AlwaysOnTop = true
-
-	local textLabel = Instance.new("TextLabel")
-	textLabel.Text = model.Name
-	textLabel.Size = UDim2.new(1, 0, 1, 0)
-	textLabel.BackgroundTransparency = 1
-	textLabel.TextColor3 = Color3.new(1, 1, 1)
-	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	textLabel.TextStrokeTransparency = 0
-	textLabel.TextScaled = true
-	textLabel.Parent = billboard
-
-	billboard.Parent = model
 end
 
 -- Обновление счетчика моделей
@@ -226,8 +260,8 @@ RunService.Heartbeat:Connect(function()
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local newY = targetPart.Position.Y
-						if newY < 113 then newY = 113 end
-						if newY > 210 then newY = 210 end
+						if newY <  MinHeight then newY =  MinHeight end
+						if newY > MaxHeight then newY = MaxHeight end
 						hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
 						lastTpTime = now
 					end
