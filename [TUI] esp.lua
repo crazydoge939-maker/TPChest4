@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -138,7 +139,6 @@ end)
 local function disableCollision(part)
 	if part and part:IsA("Part") then
 		part.CanCollide = false
-		-- Можно добавить задержку для восстановления коллизий, если нужно
 	end
 end
 
@@ -205,36 +205,58 @@ local function createBillboard(model)
 	textLabel.Parent = billboard
 end
 
+-- Таблица для кэша моделей и времени их появления
 local modelsCache = {
 	chests = {},
 	other = {}
 }
 
-local function findModels(name)
-	-- Обновляем список моделей для каждого типа
+-- Обновленная функция поиска моделей с тайм-аутом
+local function findModelsWithTimeout(name)
+	local now = tick()
+	-- Обновляем список моделей
 	local models = {}
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
 			table.insert(models, obj)
 		end
 	end
-
 	-- Обновляем кэш
-	modelsCache[name] = models
-
-	-- Создаем BillboardGui для новых моделей, если их еще нет
+	local cache = modelsCache[name] or {}
+	-- Обновляем время у текущих моделей
 	for _, model in ipairs(models) do
+		cache[model] = now
+	end
+	-- Удаляем модели из кэша, которых нет в списке и прошло 5 секунд
+	for model, timeFound in pairs(cache) do
+		if not table.find(models, model) and (now - timeFound >= 2) then
+			cache[model] = nil
+		end
+	end
+	-- Обновляем кэш
+	modelsCache[name] = cache
+
+	-- Возвращаем актуальные модели
+	local result = {}
+	for model, timeFound in pairs(cache) do
+		if table.find(models, model) or (now - timeFound < 2) then
+			table.insert(result, model)
+		end
+	end
+
+	-- Создаем BillboardGui для новых моделей
+	for _, model in ipairs(result) do
 		if not model:FindFirstChildOfClass("BillboardGui") then
 			createBillboard(model)
 		end
 	end
 
-	return models
+	return result
 end
 
 local function updateCounts()
-	local chestsModels = findModels("chests")
-	local otherModels = findModels("other")
+	local chestsModels = findModelsWithTimeout("chests")
+	local otherModels = findModelsWithTimeout("other")
 	chestsCountLabel.Text = "Сундуков [" .. #chestsModels .. "]"
 	othersCountLabel.Text = "Предметов [" .. #otherModels .. "]"
 end
@@ -246,9 +268,8 @@ end
 
 local function activatePrompt(prompt)
 	if prompt and prompt.Enabled then
-		-- Имитируем удержание промпта
 		prompt:InputHoldBegin()
-		wait(0.2) -- небольшая задержка
+		wait(0.2)
 		prompt:InputHoldEnd()
 	end
 end
@@ -265,23 +286,21 @@ RunService.Heartbeat:Connect(function()
 		if now - lastTpTime >= cooldown then
 			local modelsToTp = {}
 			if teleportChests then
-				local chestsModels = findModels("chests")
+				local chestsModels = findModelsWithTimeout("chests")
 				for _, m in ipairs(chestsModels) do
 					table.insert(modelsToTp, m)
 				end
 			end
 			if teleportOthers then
-				local otherModels = findModels("other")
+				local otherModels = findModelsWithTimeout("other")
 				for _, m in ipairs(otherModels) do
 					table.insert(modelsToTp, m)
 				end
 			end
-
 			if #modelsToTp > 0 then
 				local targetModel = modelsToTp[math.random(1, #modelsToTp)]
 				local hrp = character:FindFirstChild("HumanoidRootPart")
 				if hrp then
-					-- телепорт
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local targetY = targetPart.Position.Y
@@ -291,12 +310,8 @@ RunService.Heartbeat:Connect(function()
 							if newY > MaxHeight then newY = MaxHeight end
 							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
 							lastTpTime = now
-
-							-- отключить коллизию у HumanoidRootPart
 							disableCollision(hrp)
-
-							-- найти и отключить коллизию у ближайшего объекта
-							local radius = 105 -- радиус поиска ближайшего объекта
+							local radius = 105
 							local closestPart = findClosestObject(hrp.Position, radius)
 							if closestPart then
 								disableCollision(closestPart)
@@ -308,7 +323,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Проверка и автоматическая активация промптов
 	if promptAutoActivate then
 		local playerChar = game.Players.LocalPlayer.Character
 		if playerChar and playerChar:FindFirstChild("HumanoidRootPart") then
@@ -317,11 +331,16 @@ RunService.Heartbeat:Connect(function()
 					if model:IsA("Model") and model.Name == modelName then
 						for _, descendant in ipairs(model:GetDescendants()) do
 							if descendant:IsA("ProximityPrompt") and descendant.Enabled then
-								descendant.HoldDuration = 0
-								descendant.MaxActivationDistance = 20
-								local distance = (playerChar.HumanoidRootPart.Position - descendant.Parent.Position).magnitude
-								if distance <= descendant.MaxActivationDistance then
-									activatePrompt(descendant)
+								if descendant.Parent and descendant.Parent:IsA("BasePart") then
+									descendant.HoldDuration = 0
+									descendant.MaxActivationDistance = 20
+									local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+									if hrp then
+										local distance = (hrp.Position - descendant.Parent.Position).magnitude
+										if distance <= descendant.MaxActivationDistance then
+											activatePrompt(descendant)
+										end
+									end
 								end
 							end
 						end
