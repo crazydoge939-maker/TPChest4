@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -20,7 +21,7 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Основная панель
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0, 200, 0, 280)
+panel.Size = UDim2.new(0, 200, 0, 300)
 panel.Position = UDim2.new(0.5, -100, 0.5, -150)
 panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 panel.BorderSizePixel = 4
@@ -159,7 +160,7 @@ itemCountLabel.Parent = panel
 
 local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1, -20, 0, 30)
-coordsLabel.Position = UDim2.new(0, 10, 0, 240)
+coordsLabel.Position = UDim2.new(0, 10, 0, 270)
 coordsLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 coordsLabel.BorderSizePixel = 0
 coordsLabel.Text = "[X=0, Y=0, Z=0]"
@@ -168,6 +169,8 @@ coordsLabel.TextSize = 12
 coordsLabel.TextScaled = true
 coordsLabel.TextColor3 = Color3.new(1, 1, 1)
 coordsLabel.Parent = panel
+coordsLabel.BorderSizePixel = 2
+coordsLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 
 -- Получение всех объектов по именам
 local function getAllObjectsByNames(names)
@@ -200,7 +203,7 @@ runService.RenderStepped:Connect(function()
 	coordsLabel.Text = string.format("[X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
 end)
 
--- Основной цикл для обновления счетчиков (объединен в один)
+-- Основной цикл для обновления счетчиков
 spawn(function()
 	while true do
 		updateChestCount()
@@ -214,13 +217,15 @@ local cooldownSeconds = 1
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0, 50, 0, 30)
 cooldownBox.Position = UDim2.new(0, 10, 0, 200)
-cooldownBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+cooldownBox.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 cooldownBox.BorderSizePixel = 1
 cooldownBox.Text = tostring(cooldownSeconds)
 cooldownBox.PlaceholderText = "КД ТП"
-cooldownBox.Font = Enum.Font.SourceSans
+cooldownBox.Font = Enum.Font.Michroma
 cooldownBox.TextSize = 14
 cooldownBox.TextColor3 = Color3.new(1,1,1)
+cooldownBox.BorderSizePixel = 2
+cooldownBox.BorderColor3 = Color3.fromRGB(255, 255, 255)
 cooldownBox.Parent = panel
 
 cooldownBox.FocusLost:Connect(function()
@@ -298,6 +303,8 @@ local function createButtonWithOutline(text, size, position, color, parent)
 	button.TextStrokeColor3 = Color3.new(0,0,0)
 	button.TextStrokeTransparency = 0
 	button.Font = Enum.Font.Michroma
+	button.BorderSizePixel = 2
+	button.BorderColor3 = Color3.fromRGB(255, 255, 255)
 	button.TextScaled = true
 	button.Parent = parent
 	return button
@@ -320,6 +327,11 @@ local function activatePrompt(prompt)
 		prompt:InputHoldEnd()
 	end
 end
+
+-- Переменные для нокаипа
+local noclipEnabled = false
+local noclipButton
+local storedObjects = {} -- таблица для хранения объектов и их исходных CanCollide
 
 -- Основной цикл
 runService.Heartbeat:Connect(function()
@@ -349,7 +361,70 @@ runService.Heartbeat:Connect(function()
 			end
 		end
 	end
+
+	-- Ноклип режим
+	if noclipEnabled then
+		-- отключаем коллизию у HumanoidRootPart
+		humanoidRootPart.CanCollide = false
+		local hrpPos = humanoidRootPart.Position
+		-- отключаем коллизию у ближайших объектов внутри радиуса 50
+		for _, part in pairs(workspace:GetDescendants()) do
+			if part:IsA("BasePart") then
+				local distance = (part.Position - hrpPos).magnitude
+				if distance <= 80 then
+					-- сохраняем исходное состояние, если еще не сохранено
+					if not storedObjects[part] then
+						storedObjects[part] = part.CanCollide
+					end
+					part.CanCollide = false
+				end
+			end
+		end
+	else
+		-- при отключении режима восстанавливаем CanCollide у объектов
+		for obj, originalState in pairs(storedObjects) do
+			if obj and obj.Parent then
+				obj.CanCollide = originalState
+			end
+		end
+		-- очищаем таблицу
+		storedObjects = {}
+		-- возвращаем коллизию у HumanoidRootPart
+		humanoidRootPart.CanCollide = true
+	end
 end)
+
+-- Создаем кнопку для нокаипа
+local function createNoclipButton()
+	noclipButton = createButtonWithOutline(
+		"NoClip [OFF]",
+		UDim2.new(0, 120, 0, 30),
+		UDim2.new(0, 70, 0, 235),
+		Color3.fromRGB(0, 0, 0),
+		panel
+	)
+
+	noclipButton.MouseButton1Click:Connect(function()
+		noclipEnabled = not noclipEnabled
+		if noclipEnabled then
+			noclipButton.Text = "NoClip [ON]"
+			noclipButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			noclipButton.Text = "NoClip [OFF]"
+			noclipButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			-- при отключении восстанавливаем CanCollide
+			for obj, originalState in pairs(storedObjects) do
+				if obj and obj.Parent then
+					obj.CanCollide = originalState
+				end
+			end
+			-- очищаем таблицу после восстановления
+			storedObjects = {}
+		end
+	end)
+end
+
+createNoclipButton()
 
 local function stopTeleportCycle()
 	teleporting = false
