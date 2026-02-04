@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -11,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local MinHeight = 110
-local MaxHeight = 220
+local MaxHeight = 210
 
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -245,13 +244,17 @@ local function teleportToPart(part)
 	humanoidRootPart.CanCollide = true
 end
 
+local teleportingChests = false
+local teleportingItems = false
+
 local function startTeleportCycleChests()
-	if teleporting then return end
-	teleporting = true
+	if teleportingChests then return end
+	teleportingChests = true
 	startChestButton.Visible = false
 	stopChestButton.Visible = true
 	coroutine.wrap(function()
-		while teleporting do
+		while teleportingChests do
+			-- логика для сундуков
 			local chests = getAllObjectsByNames({"chests"})
 			local accessibleChests = {}
 			for _, chest in pairs(chests) do
@@ -270,12 +273,12 @@ local function startTeleportCycleChests()
 end
 
 local function startTeleportCycleItems()
-	if teleporting then return end
-	teleporting = true
+	if teleportingItems then return end
+	teleportingItems = true
 	startItemButton.Visible = false
 	stopItemButton.Visible = true
 	coroutine.wrap(function()
-		while teleporting do
+		while teleportingItems do
 			local items = getAllObjectsByNames({"other"})
 			local accessibleItems = {}
 			for _, item in pairs(items) do
@@ -371,7 +374,7 @@ runService.Heartbeat:Connect(function()
 		for _, part in pairs(workspace:GetDescendants()) do
 			if part:IsA("BasePart") then
 				local distance = (part.Position - hrpPos).magnitude
-				if distance <= 80 then
+				if distance <= 100 then
 					-- сохраняем исходное состояние, если еще не сохранено
 					if not storedObjects[part] then
 						storedObjects[part] = part.CanCollide
@@ -427,7 +430,8 @@ end
 createNoclipButton()
 
 local function stopTeleportCycle()
-	teleporting = false
+	teleportingChests = false
+	teleportingItems = false
 	startChestButton.Visible = true
 	stopChestButton.Visible = false
 	startItemButton.Visible = true
