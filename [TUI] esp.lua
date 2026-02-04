@@ -1,340 +1,289 @@
-local Players = game:GetService("Players")
+-- Вставьте этот скрипт в StarterPlayerScripts
+
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local workspace = game:GetService("Workspace")
-
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local camera = workspace.CurrentCamera
 
-local MaxHeight = 220
-local MinHeight = 110
+-- Настройки
+local teleporterEnabled = true
+local cooldownTime = 5 -- по умолчанию 5 секунд
+local lastTeleportTime = 0
+local minY = 110
+local maxY = 220
 
--- Переменные для телепортации
-local teleportChests = false
-local teleportOthers = false
-local lastTpTime = 0
+-- GUI Создание
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportGUI"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Переменная для автопрогика
-local enabledPrompt = true
+-- Основная панель
+local Panel = Instance.new("Frame")
+Panel.Size = UDim2.new(0, 300, 0, 200)
+Panel.Position = UDim2.new(0.5, -150, 0.5, -100)
+Panel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Panel.BorderSizePixel = 0
+Panel.Parent = ScreenGui
 
--- Создаем GUI для управления
-local gui = Instance.new("ScreenGui")
-gui.Name = "TeleportAndPromptControl"
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -125)
-mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-mainFrame.BorderSizePixel = 2
-mainFrame.Parent = gui
-
+-- Возможность перемещать панель
 local dragging = false
 local dragInput, dragStart, startPos
 
-mainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
-	end
+Panel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Panel.Position
+    end
 end)
 
-mainFrame.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
+Panel.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
 end)
 
-mainFrame.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local delta = input.Position - dragStart
-		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	end
+Panel.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input.Position
+        local delta = dragInput - dragStart
+        Panel.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
+    end
 end)
 
-local function createTextLabelWithOutline(text, size, position, parent)
-	local label = Instance.new("TextLabel")
-	label.Text = text
-	label.Size = size
-	label.Position = position
-	label.BackgroundColor3 = Color3.new(0, 0, 0)
-	label.TextColor3 = Color3.new(1,1,1)
-	label.TextStrokeColor3 = Color3.new(0,0,0)
-	label.TextStrokeTransparency = 0
-	label.Font = Enum.Font.Michroma
-	label.TextScaled = true
-	label.Parent = parent
-	return label
-end
+-- Заголовок
+local Title = Instance.new("TextLabel")
+Title.Text = "TP Panel"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Parent = Panel
 
-local function createButtonWithOutline(text, size, position, color, parent)
-	local button = Instance.new("TextButton")
-	button.Text = text
-	button.Size = size
-	button.Position = position
-	button.BackgroundColor3 = color
-	button.TextColor3 = Color3.new(1,1,1)
-	button.TextStrokeColor3 = Color3.new(0,0,0)
-	button.TextStrokeTransparency = 0
-	button.Font = Enum.Font.Michroma
-	button.TextScaled = true
-	button.Parent = parent
-	return button
-end
+-- Кнопка для включения/выключения
+local toggleButton = Instance.new("TextButton")
+toggleButton.Text = "Включить/Выключить"
+toggleButton.Size = UDim2.new(1, -20, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 40)
+toggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.Parent = Panel
 
-local title = createTextLabelWithOutline("AUTO TP", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 0), mainFrame)
+-- Кнопка для TP сундуков
+local tpChestsButton = Instance.new("TextButton")
+tpChestsButton.Text = "TP Сундуки"
+tpChestsButton.Size = UDim2.new(1, -20, 0, 30)
+tpChestsButton.Position = UDim2.new(0, 10, 0, 80)
+tpChestsButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+tpChestsButton.TextColor3 = Color3.new(1,1,1)
+tpChestsButton.Parent = Panel
 
--- Телепорт кнопки
-local toggleChests = createButtonWithOutline("TP Сундуки", UDim2.new(0, 100, 0, 30), UDim2.new(0, 5, 0, 100), Color3.fromRGB(88, 29, 0), mainFrame)
-local toggleOther = createButtonWithOutline("TP Предметы", UDim2.new(0, 100, 0, 30), UDim2.new(0, 115, 0, 100), Color3.fromRGB(0, 0, 127), mainFrame)
+-- Кнопка для TP предметов
+local tpOtherButton = Instance.new("TextButton")
+tpOtherButton.Text = "TP Предметы"
+tpOtherButton.Size = UDim2.new(1, -20, 0, 30)
+tpOtherButton.Position = UDim2.new(0, 10, 0, 120)
+tpOtherButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+tpOtherButton.TextColor3 = Color3.new(1,1,1)
+tpOtherButton.Parent = Panel
+
+-- Время кулдауна
+local cooldownLabel = Instance.new("TextLabel")
+cooldownLabel.Text = "КД (сек):"
+cooldownLabel.Size = UDim2.new(0, 60, 0, 20)
+cooldownLabel.Position = UDim2.new(0, 10, 0, 160)
+cooldownLabel.BackgroundTransparency = 1
+cooldownLabel.TextColor3 = Color3.new(1,1,1)
+cooldownLabel.Parent = Panel
 
 local cooldownBox = Instance.new("TextBox")
-cooldownBox.Text = "1"
-cooldownBox.PlaceholderText = "КД ТП"
-cooldownBox.Size = UDim2.new(0, 50, 0, 30)
-cooldownBox.Position = UDim2.new(0, 5, 0, 140)
-cooldownBox.BackgroundColor3 = Color3.fromRGB(255,255,255)
-cooldownBox.TextColor3 = Color3.new(0,0,0)
-cooldownBox.Font = Enum.Font.Michroma
-cooldownBox.TextScaled = true
-cooldownBox.Parent = mainFrame
+cooldownBox.Text = tostring(cooldownTime)
+cooldownBox.Size = UDim2.new(0, 50, 0, 20)
+cooldownBox.Position = UDim2.new(0, 70, 0, 160)
+cooldownBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
+cooldownBox.TextColor3 = Color3.new(1,1,1)
+cooldownBox.Parent = Panel
 
-local coordsLabel = createTextLabelWithOutline("Корды", UDim2.new(1, -10, 0, 20), UDim2.new(0, 5, 0, 180), mainFrame)
+-- Координаты игрока
+local coordsLabel = Instance.new("TextLabel")
+coordsLabel.Text = "Координаты: "
+coordsLabel.Size = UDim2.new(1, -20, 0, 20)
+coordsLabel.Position = UDim2.new(0, 10, 0, 190)
+coordsLabel.BackgroundTransparency = 1
+coordsLabel.TextColor3 = Color3.new(1,1,1)
+coordsLabel.Parent = Panel
 
-local chestsCountLabel = createTextLabelWithOutline("Сундуков [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 5, 0, 40), mainFrame)
-local othersCountLabel = createTextLabelWithOutline("Предметов [", UDim2.new(0, 100, 0, 50), UDim2.new(0, 115, 0, 40), mainFrame)
+-- Счётчики
+local chestsCountLabel = Instance.new("TextLabel")
+chestsCountLabel.Text = "Честы: 0"
+chestsCountLabel.Size = UDim2.new(0.5, -15, 0, 20)
+chestsCountLabel.Position = UDim2.new(0, 10, 0, 220)
+chestsCountLabel.BackgroundTransparency = 1
+chestsCountLabel.TextColor3 = Color3.new(1,1,1)
+chestsCountLabel.Parent = Panel
 
--- Кнопка для включения/выключения автоподтверждения Prompts
-local togglePromptBtn = createButtonWithOutline("Авто сбор [Вкл]", UDim2.new(0, 120, 0, 30), UDim2.new(0, 65, 0, 140), Color3.fromRGB(24, 0, 36), mainFrame)
+local othersCountLabel = Instance.new("TextLabel")
+othersCountLabel.Text = "Предметы: 0"
+othersCountLabel.Size = UDim2.new(0.5, -15, 0, 20)
+othersCountLabel.Position = UDim2.new(0.5, 5, 0, 220)
+othersCountLabel.BackgroundTransparency = 1
+othersCountLabel.TextColor3 = Color3.new(1,1,1)
+othersCountLabel.Parent = Panel
 
-local promptAutoActivate = false -- состояние автоподтверждения Prompts
+-- Переменные
+local tpActive = true
 
-togglePromptBtn.MouseButton1Click:Connect(function()
-	promptAutoActivate = not promptAutoActivate
-	togglePromptBtn.Text = "Авто сбор " .. (promptAutoActivate and "[Вкл]" or "[Выкл]")
-	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
+toggleButton.MouseButton1Click:Connect(function()
+    tpActive = not tpActive
+    if tpActive then
+        toggleButton.Text = "Выключить"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+    else
+        toggleButton.Text = "Включить"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
+    end
 end)
 
-local function getCooldown()
-	local cd = tonumber(cooldownBox.Text)
-	if cd == nil or cd < 0 then
-		return 2
-	end
-	return cd
-end
-
-toggleChests.MouseButton1Click:Connect(function()
-	teleportChests = not teleportChests
-	toggleChests.BackgroundColor3 = teleportChests and Color3.fromRGB(255, 85, 0) or Color3.fromRGB(125, 0, 0)
+-- Обновление кулдауна
+cooldownBox.FocusLost:Connect(function()
+    local val = tonumber(cooldownBox.Text)
+    if val and val >= 0 then
+        cooldownTime = val
+    else
+        cooldownBox.Text = tostring(cooldownTime)
+    end
 end)
 
-toggleOther.MouseButton1Click:Connect(function()
-	teleportOthers = not teleportOthers
-	toggleOther.BackgroundColor3 = teleportOthers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(0, 0, 127)
-end)
-
-local function disableCollision(part)
-	if part and part:IsA("BasePart") then
-		part.CanCollide = false
-	end
-end
-
-local function findClosestObject(position, radius)
-	local closestPart = nil
-	local closestDistance = math.huge
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Part") and obj.CanCollide then
-			local height = obj.Position.Y
-			if height >= MinHeight and height <= MaxHeight then -- фильтр по высоте
-				local distance = (obj.Position - position).magnitude
-				if distance <= radius then
-					if distance < closestDistance then
-						closestDistance = distance
-						closestPart = obj
-					end
-				end
-			end
-		end
-	end
-	return closestPart
-end
-
-local function createBillboard(model)
-	if model:FindFirstChildOfClass("BillboardGui") then
-		return
-	end
-
-	local attachPart = nil
-	for _, part in ipairs(model:GetChildren()) do
-		if part:IsA("BasePart") then
-			attachPart = part
-			break
-		end
-	end
-
-	if not attachPart then
-		warn("Не найдена BasePart в модели: " .. model.Name)
-		return
-	end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 100, 0, 50)
-	billboard.Adornee = attachPart
-	billboard.AlwaysOnTop = true
-	billboard.Name = "Billboard_" .. model:GetFullName()
-	billboard.Parent = model
-
-	local textLabel = Instance.new("TextLabel")
-	textLabel.Text = model.Name
-	textLabel.Size = UDim2.new(1, 0, 1, 0)
-	textLabel.BackgroundTransparency = 1
-	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	textLabel.TextStrokeTransparency = 0
-	textLabel.TextScaled = true
-
-	if string.lower(model.Name) == "chests" then
-		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
-	elseif string.lower(model.Name) == "other" then
-		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
-	else
-		textLabel.TextColor3 = Color3.new(1, 1, 1)
-	end
-
-	textLabel.Parent = billboard
-end
-
-local modelsCache = {
-	chests = {},
-	other = {}
-}
-
-local function findModels(name)
-	local models = {}
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
-			local part = obj:FindFirstChildWhichIsA("BasePart")
-			if part then
-				local height = part.Position.Y
-				if height >= MinHeight and height <= MaxHeight then
-					table.insert(models, obj)
-				end
-			end
-		end
-	end
-	-- Обновляем кэш
-	modelsCache[name] = models
-
-	return models
+-- Основная логика
+local function getModelsByName(name)
+    local models = {}
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and (string.lower(model.Name) == "chests" or string.lower(model.Name) == "other") then
+            table.insert(models, model)
+        end
+    end
+    return models
 end
 
 local function updateCounts()
-	local chestsModels = findModels("chests")
-	local otherModels = findModels("other")
-	chestsCountLabel.Text = "Сундуков [" .. #chestsModels .. "]"
-	othersCountLabel.Text = "Предметов [" .. #otherModels .. "]"
+    local chestsCount = 0
+    local othersCount = 0
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") then
+            local nameLower = string.lower(model.Name)
+            if nameLower == "chests" then
+                chestsCount = chestsCount + 1
+            elseif nameLower == "other" then
+                othersCount = othersCount + 1
+            end
+        end
+    end
+    chestsCountLabel.Text = "Честы: " .. chestsCount
+    othersCountLabel.Text = "Предметы: " .. othersCount
 end
 
-local function updateCoords()
-	local pos = character:FindFirstChild("HumanoidRootPart").Position
-	coordsLabel.Text = string.format("Корды [X=%.1f] [Y=%.1f] [Z=%.1f]", pos.X, pos.Y, pos.Z)
+local function createBillboard(model)
+    -- Удаляем предыдущий BillboardGui, если есть
+    local existing = model:FindFirstChildOfClass("BillboardGui")
+    if existing then existing:Destroy() end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(2, 0, 1, 0)
+    billboard.Adornee = model:FindFirstChildWhichIsA("BasePart")
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.Parent = model
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Text = model.Name
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = Color3.new(1,1,1)
+    textLabel.TextStrokeColor3 = Color3.new(0,0,0)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.Parent = billboard
 end
 
-local function activatePrompt(prompt)
-	if prompt and prompt.Enabled then
-		prompt:InputHoldBegin()
-		wait(0.2)
-		prompt:InputHoldEnd()
-	end
+local function updateBillboards()
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and (string.lower(model.Name) == "chests" or string.lower(model.Name) == "other") then
+            createBillboard(model)
+        end
+    end
+end
+
+local function teleportPlayer(targetPosition)
+    local y = targetPosition.Y
+    if y < minY then y = minY end
+    if y > maxY then y = maxY end
+    humanoidRootPart.CFrame = CFrame.new(targetPosition.X, y, targetPosition.Z)
+end
+
+local function getRandomModel()
+    local models = getModelsByName()
+    if #models == 0 then return nil end
+    return models[math.random(1, #models)]
+end
+
+local function getPlayerPosition()
+    local pos = humanoidRootPart.Position
+    coordsLabel.Text = string.format("Координаты: %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
 end
 
 -- Основной цикл
 RunService.Heartbeat:Connect(function()
-	updateCoords()
-
-	local now = tick()
-	local cooldown = getCooldown()
-
-	if teleportChests or teleportOthers then
-		if now - lastTpTime >= cooldown then
-			local modelsToTp = {}
-			if teleportChests then
-				local chestsModels = findModels("chests")
-				for _, m in ipairs(chestsModels) do
-					table.insert(modelsToTp, m)
-				end
-			end
-			if teleportOthers then
-				local otherModels = findModels("other")
-				for _, m in ipairs(otherModels) do
-					table.insert(modelsToTp, m)
-				end
-			end
-
-			if #modelsToTp > 0 then
-				local targetModel = modelsToTp[math.random(1, #modelsToTp)]
-				local hrp = character:FindFirstChild("HumanoidRootPart")
-				if hrp then
-					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
-					if targetPart then
-						local targetY = targetPart.Position.Y
-						if targetY >= MinHeight and targetY <= MaxHeight then
-							local newY = targetY
-							if newY < MinHeight then newY = MinHeight end
-							if newY > MaxHeight then newY = MaxHeight end
-							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
-							lastTpTime = now
-
-							disableCollision(hrp)
-
-							local radius = 105
-							local closestPart = findClosestObject(hrp.Position, radius)
-							if closestPart then
-								disableCollision(closestPart)
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-
-	if promptAutoActivate then
-		local playerChar = game.Players.LocalPlayer.Character
-		if playerChar and playerChar:FindFirstChild("HumanoidRootPart") then
-			for _, modelName in ipairs({"chests", "other"}) do
-				for _, model in ipairs(workspace:GetChildren()) do
-					if model:IsA("Model") and model.Name == modelName then
-						for _, descendant in ipairs(model:GetDescendants()) do
-							if descendant:IsA("ProximityPrompt") and descendant.Enabled then
-								if descendant.Parent and descendant.Parent:IsA("BasePart") then
-									descendant.HoldDuration = 0
-									descendant.MaxActivationDistance = 20
-									local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-									if hrp then
-										local distance = (hrp.Position - descendant.Parent.Position).magnitude
-										if distance <= descendant.MaxActivationDistance then
-											activatePrompt(descendant)
-										end
-									end
-								end
-							end
-						end
-					end
-				end
-			end
-		end
-	end
+    getPlayerPosition()
+    updateCounts()
+    updateBillboards()
+    if tpActive and tick() - lastTeleportTime > cooldownTime then
+        local model = getRandomModel()
+        if model and model:FindFirstChildWhichIsA("BasePart") then
+            local targetPos = model:GetPrimaryPartCFrame().p
+            teleportPlayer(targetPos)
+            lastTeleportTime = tick()
+        end
+    end
 end)
 
-updateCounts()
-updateCoords()
+-- Обработка кнопок
+tpChestsButton.MouseButton1Click:Connect(function()
+    -- Можно дополнительно реализовать выбор модели, если нужно
+    -- В данном случае телепорт к случайной модели с именем "chests"
+    local chestsModels = {}
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and string.lower(model.Name) == "chests" then
+            table.insert(chestsModels, model)
+        end
+    end
+    if #chestsModels > 0 then
+        local model = chestsModels[math.random(1, #chestsModels)]
+        if model and model:FindFirstChildWhichIsA("BasePart") then
+            local targetPos = model:GetPrimaryPartCFrame().p
+            teleportPlayer(targetPos)
+        end
+    end
+end)
 
-coroutine.wrap(function()
-	while true do
-		wait(1)
-		updateCounts()
-		updateCoords()
-	end
-end)()
+tpOtherButton.MouseButton1Click:Connect(function()
+    local otherModels = {}
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and string.lower(model.Name) == "other" then
+            table.insert(otherModels, model)
+        end
+    end
+    if #otherModels > 0 then
+        local model = otherModels[math.random(1, #otherModels)]
+        if model and model:FindFirstChildWhichIsA("BasePart") then
+            local targetPos = model:GetPrimaryPartCFrame().p
+            teleportPlayer(targetPos)
+        end
+    end
+end)
+
+-- Обновление через каждую секунду
+while true do
+    wait(1)
+    updateCounts()
+    updateBillboards()
+end
