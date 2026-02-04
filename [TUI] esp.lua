@@ -1,5 +1,3 @@
-
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -140,7 +138,6 @@ end)
 local function disableCollision(part)
 	if part and part:IsA("BasePart") then
 		part.CanCollide = false
-		-- Можно добавить задержку для восстановления коллизий, если нужно
 	end
 end
 
@@ -150,7 +147,7 @@ local function findClosestObject(position, radius)
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Part") and obj.CanCollide then
 			local height = obj.Position.Y
-			if height >= MinHeight and height <= MaxHeight then -- игнорируем объекты за пределами лимита
+			if height >= MinHeight and height <= MaxHeight then -- фильтр по высоте
 				local distance = (obj.Position - position).magnitude
 				if distance <= radius then
 					if distance < closestDistance then
@@ -162,6 +159,50 @@ local function findClosestObject(position, radius)
 		end
 	end
 	return closestPart
+end
+
+local function createBillboard(model)
+	if model:FindFirstChildOfClass("BillboardGui") then
+		return
+	end
+
+	local attachPart = nil
+	for _, part in ipairs(model:GetChildren()) do
+		if part:IsA("BasePart") then
+			attachPart = part
+			break
+		end
+	end
+
+	if not attachPart then
+		warn("Не найдена BasePart в модели: " .. model.Name)
+		return
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 100, 0, 50)
+	billboard.Adornee = attachPart
+	billboard.AlwaysOnTop = true
+	billboard.Name = "Billboard_" .. model:GetFullName()
+	billboard.Parent = model
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Text = model.Name
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	textLabel.TextStrokeTransparency = 0
+	textLabel.TextScaled = true
+
+	if string.lower(model.Name) == "chests" then
+		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+	elseif string.lower(model.Name) == "other" then
+		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
+	else
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
+	end
+
+	textLabel.Parent = billboard
 end
 
 local modelsCache = {
@@ -176,7 +217,7 @@ local function findModels(name)
 			local part = obj:FindFirstChildWhichIsA("BasePart")
 			if part then
 				local height = part.Position.Y
-				if height >= MinHeight and height <= MaxHeight then -- фильтр по высоте
+				if height >= MinHeight and height <= MaxHeight then
 					table.insert(models, obj)
 				end
 			end
@@ -210,7 +251,6 @@ end
 
 -- Основной цикл
 RunService.Heartbeat:Connect(function()
-	-- Обновляем координаты
 	updateCoords()
 
 	local now = tick()
@@ -246,11 +286,9 @@ RunService.Heartbeat:Connect(function()
 							hrp.CFrame = CFrame.new(targetPart.Position.X, newY, targetPart.Position.Z)
 							lastTpTime = now
 
-							-- отключить коллизию у HumanoidRootPart
 							disableCollision(hrp)
 
-							-- найти и отключить коллизию у ближайшего объекта
-							local radius = 105 -- радиус поиска ближайшего объекта
+							local radius = 105
 							local closestPart = findClosestObject(hrp.Position, radius)
 							if closestPart then
 								disableCollision(closestPart)
@@ -262,7 +300,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Проверка и автоматическая активация промптов
 	if promptAutoActivate then
 		local playerChar = game.Players.LocalPlayer.Character
 		if playerChar and playerChar:FindFirstChild("HumanoidRootPart") then
@@ -291,11 +328,9 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- Обновление счетчиков и координат
 updateCounts()
 updateCoords()
 
--- Таймеры для обновления данных
 coroutine.wrap(function()
 	while true do
 		wait(1)
