@@ -1,7 +1,9 @@
+
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local workspace = game.Workspace
+local workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -136,56 +138,30 @@ toggleOther.MouseButton1Click:Connect(function()
 end)
 
 local function disableCollision(part)
-	if part and part:IsA("Part") then
+	if part and part:IsA("BasePart") then
 		part.CanCollide = false
 		-- Можно добавить задержку для восстановления коллизий, если нужно
 	end
 end
 
-local function createBillboard(model)
-	-- Проверяем, есть ли уже BillboardGui у модели
-	if model:FindFirstChildOfClass("BillboardGui") then
-		return
-	end
-
-	local attachPart = nil
-	for _, part in ipairs(model:GetChildren()) do
-		if part:IsA("BasePart") then
-			attachPart = part
-			break
+local function findClosestObject(position, radius)
+	local closestPart = nil
+	local closestDistance = math.huge
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Part") and obj.CanCollide then
+			local height = obj.Position.Y
+			if height >= MinHeight and height <= MaxHeight then -- игнорируем объекты за пределами лимита
+				local distance = (obj.Position - position).magnitude
+				if distance <= radius then
+					if distance < closestDistance then
+						closestDistance = distance
+						closestPart = obj
+					end
+				end
+			end
 		end
 	end
-
-	if not attachPart then
-		warn("Не найдена BasePart в модели: " .. model.Name)
-		return
-	end
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 100, 0, 50)
-	billboard.Adornee = attachPart
-	billboard.AlwaysOnTop = true
-	-- Можно задать уникальное имя, например, используя путь
-	billboard.Name = "Billboard_" .. model:GetFullName()
-	billboard.Parent = model
-
-	local textLabel = Instance.new("TextLabel")
-	textLabel.Text = model.Name
-	textLabel.Size = UDim2.new(1, 0, 1, 0)
-	textLabel.BackgroundTransparency = 1
-	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	textLabel.TextStrokeTransparency = 0
-	textLabel.TextScaled = true
-
-	if string.lower(model.Name) == "chests" then
-		textLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
-	elseif string.lower(model.Name) == "other" then
-		textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
-	else
-		textLabel.TextColor3 = Color3.new(1, 1, 1)
-	end
-
-	textLabel.Parent = billboard
+	return closestPart
 end
 
 local modelsCache = {
@@ -194,23 +170,20 @@ local modelsCache = {
 }
 
 local function findModels(name)
-	-- Обновляем список моделей для каждого типа
 	local models = {}
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Model") and (string.lower(obj.Name) == string.lower(name)) then
-			table.insert(models, obj)
+			local part = obj:FindFirstChildWhichIsA("BasePart")
+			if part then
+				local height = part.Position.Y
+				if height >= MinHeight and height <= MaxHeight then -- фильтр по высоте
+					table.insert(models, obj)
+				end
+			end
 		end
 	end
-
 	-- Обновляем кэш
 	modelsCache[name] = models
-
-	-- Создаем BillboardGui для новых моделей, если их еще нет
-	for _, model in ipairs(models) do
-		if not model:FindFirstChildOfClass("BillboardGui") then
-			createBillboard(model)
-		end
-	end
 
 	return models
 end
@@ -229,9 +202,8 @@ end
 
 local function activatePrompt(prompt)
 	if prompt and prompt.Enabled then
-		-- Имитируем удержание промпта
 		prompt:InputHoldBegin()
-		wait(0.2) -- небольшая задержка
+		wait(0.2)
 		prompt:InputHoldEnd()
 	end
 end
@@ -244,49 +216,19 @@ RunService.Heartbeat:Connect(function()
 	local now = tick()
 	local cooldown = getCooldown()
 
-	local function isWithinHeightLimits(position)
-		return position.Y >= MinHeight and position.Y <= MaxHeight
-	end
-	
-	local function findClosestObject(position, radius)
-		local closestPart = nil
-		local closestDistance = math.huge
-		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Part") and obj.CanCollide then
-				if isWithinHeightLimits(obj.Position) then
-					local distance = (obj.Position - position).magnitude
-					if distance <= radius then
-						if distance < closestDistance then
-							closestDistance = distance
-							closestPart = obj
-						end
-					end
-				end
-			end
-		end
-		return closestPart
-	end
-
-	-- В основном цикле, внутри блока телепортации
 	if teleportChests or teleportOthers then
 		if now - lastTpTime >= cooldown then
 			local modelsToTp = {}
 			if teleportChests then
 				local chestsModels = findModels("chests")
 				for _, m in ipairs(chestsModels) do
-					local pos = m:GetBoundingBox().Position -- или взять позицию модели
-					if isWithinHeightLimits(pos) then
-						table.insert(modelsToTp, m)
-					end
+					table.insert(modelsToTp, m)
 				end
 			end
 			if teleportOthers then
 				local otherModels = findModels("other")
 				for _, m in ipairs(otherModels) do
-					local pos = m:GetBoundingBox().Position
-					if isWithinHeightLimits(pos) then
-						table.insert(modelsToTp, m)
-					end
+					table.insert(modelsToTp, m)
 				end
 			end
 
@@ -297,7 +239,7 @@ RunService.Heartbeat:Connect(function()
 					local targetPart = targetModel:FindFirstChildWhichIsA("BasePart")
 					if targetPart then
 						local targetY = targetPart.Position.Y
-						if isWithinHeightLimits(targetPart.Position) then
+						if targetY >= MinHeight and targetY <= MaxHeight then
 							local newY = targetY
 							if newY < MinHeight then newY = MinHeight end
 							if newY > MaxHeight then newY = MaxHeight end
@@ -329,12 +271,10 @@ RunService.Heartbeat:Connect(function()
 					if model:IsA("Model") and model.Name == modelName then
 						for _, descendant in ipairs(model:GetDescendants()) do
 							if descendant:IsA("ProximityPrompt") and descendant.Enabled then
-								-- Проверяем, что Parent существует и это часть с Position
 								if descendant.Parent and descendant.Parent:IsA("BasePart") then
 									descendant.HoldDuration = 0
 									descendant.MaxActivationDistance = 20
-									local playerChar = game.Players.LocalPlayer.Character
-									local hrp = playerChar and playerChar:FindFirstChild("HumanoidRootPart")
+									local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 									if hrp then
 										local distance = (hrp.Position - descendant.Parent.Position).magnitude
 										if distance <= descendant.MaxActivationDistance then
@@ -350,7 +290,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 end)
-
 
 -- Обновление счетчиков и координат
 updateCounts()
