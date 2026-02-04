@@ -348,7 +348,7 @@ runService.Heartbeat:Connect(function()
 							if descendant:IsA("ProximityPrompt") and descendant.Enabled then
 								if descendant.Parent and descendant.Parent:IsA("BasePart") then
 									descendant.HoldDuration = 0
-									descendant.MaxActivationDistance = 20
+									descendant.MaxActivationDistance = 25
 									local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 									if hrp then
 										local distance = (hrp.Position - descendant.Parent.Position).magnitude
