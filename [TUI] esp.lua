@@ -9,7 +9,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local camera = workspace.CurrentCamera
 
 local MaxHeight = 210
-local MinHeight = -113
+local MinHeight = 113
 
 -- Переменные для телепортации
 local teleportChests = false
