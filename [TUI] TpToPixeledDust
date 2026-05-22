@@ -1,0 +1,115 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Состояние телепорта
+local tpEnabled = false
+local connection = nil
+
+-- Создание GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TpGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 200, 0, 60)
+frame.Position = UDim2.new(0, 20, 0.5, -30)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(80, 80, 80)
+stroke.Thickness = 1
+stroke.Parent = frame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 0, 20)
+titleLabel.Position = UDim2.new(0, 0, 0, 5)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "TP to PixeledDust"
+titleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = frame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0.9, 0, 0, 28)
+toggleButton.Position = UDim2.new(0.05, 0, 0, 28)
+toggleButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+toggleButton.Text = "OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 14
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.BorderSizePixel = 0
+toggleButton.AutoButtonColor = false
+toggleButton.Parent = frame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = toggleButton
+
+-- Функция поиска Part "PixeledDust"
+local function findPixeledDust()
+	for _, descendant in workspace:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant.Name == "PixeledDust" then
+			return descendant
+		end
+	end
+	return nil
+end
+
+-- Функция телепорта
+local function teleportToPixeledDust()
+	local target = findPixeledDust()
+	if target and humanoidRootPart then
+		humanoidRootPart.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+	end
+end
+
+-- Обновление персонажа при респавне
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+end)
+
+-- Логика переключателя
+toggleButton.MouseButton1Click:Connect(function()
+	tpEnabled = not tpEnabled
+
+	if tpEnabled then
+		toggleButton.Text = "ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+
+		-- Сразу телепортируем
+		teleportToPixeledDust()
+
+		-- И продолжаем телепортировать каждый кадр, чтобы удерживать позицию
+		connection = RunService.Heartbeat:Connect(function()
+			if tpEnabled then
+				teleportToPixeledDust()
+			end
+		end)
+	else
+		toggleButton.Text = "OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+
+		if connection then
+			connection:Disconnect()
+			connection = nil
+		end
+	end
+end)
+
+screenGui.Parent = player:WaitForChild("PlayerGui")
