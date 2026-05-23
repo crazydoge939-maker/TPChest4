@@ -1,13 +1,17 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
--- Состояние телепорта
-local tpEnabled = false
-local connection = nil
+-- Состояние
+local autoTpEnabled = false
+local isInsidePart = false
+local touchedConn = nil
+local touchEndedConn = nil
+local heartbeatConn = nil
 
 -- Создание GUI
 local screenGui = Instance.new("ScreenGui")
@@ -60,6 +64,42 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 6)
 btnCorner.Parent = toggleButton
 
+-- === ПЕРЕТАСКИВАНИЕ GUI ===
+local dragToggle = nil
+local dragStart = nil
+local startPos = nil
+local dragInput = nil
+
+titleLabel.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragToggle = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragToggle = false
+			end
+		end)
+	end
+end)
+
+titleLabel.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragToggle then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
 -- Функция поиска Part "PixeledDust"
 local function findPixeledDust()
 	for _, descendant in workspace:GetDescendants() do
@@ -78,37 +118,106 @@ local function teleportToPixeledDust()
 	end
 end
 
+-- Проверка, что касание от персонажа игрока
+local function isPlayerPart(hit)
+	local hitChar = hit.Parent
+	if hitChar and hitChar == character then
+		return true
+	end
+	return false
+end
+
+-- Подключение событий касания
+local function setupTouchDetection()
+	local pixeledDust = findPixeledDust()
+	if not pixeledDust then return end
+
+	touchedConn = pixeledDust.Touched:Connect(function(hit)
+		if not isPlayerPart(hit) then return end
+
+		if not isInsidePart then
+			isInsidePart = true
+		end
+	end)
+
+	touchEndedConn = pixeledDust.TouchEnded:Connect(function(hit)
+		if not isPlayerPart(hit) then return end
+
+		-- Небольшая задержка, чтобы другие части тела тоже успели выйти
+		task.wait(0.15)
+
+		-- Проверяем, что ни одна часть персонажа больше не касается Part
+		local stillTouching = false
+		for _, touchingPart in ipairs(pixeledDust:GetTouchingParts()) do
+			if isPlayerPart(touchingPart) then
+				stillTouching = true
+				break
+			end
+		end
+
+		if not stillTouching then
+			isInsidePart = false
+		end
+	end)
+end
+
+-- Запуск цикла телепорта: телепортирует, если игрок НЕ в PixeledDust
+local function startTeleportLoop()
+	heartbeatConn = RunService.Heartbeat:Connect(function()
+		if autoTpEnabled and not isInsidePart then
+			teleportToPixeledDust()
+		end
+	end)
+end
+
+-- Остановка цикла телепорта
+local function stopTeleportLoop()
+	if heartbeatConn then
+		heartbeatConn:Disconnect()
+		heartbeatConn = nil
+	end
+end
+
+-- Отключение событий касания
+local function disableTouchDetection()
+	if touchedConn then
+		touchedConn:Disconnect()
+		touchedConn = nil
+	end
+	if touchEndedConn then
+		touchEndedConn:Disconnect()
+		touchEndedConn = nil
+	end
+	isInsidePart = false
+end
+
 -- Обновление персонажа при респавне
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+
+	-- Переподключаем детекцию, если режим включён
+	if autoTpEnabled then
+		disableTouchDetection()
+		setupTouchDetection()
+	end
 end)
 
 -- Логика переключателя
 toggleButton.MouseButton1Click:Connect(function()
-	tpEnabled = not tpEnabled
+	autoTpEnabled = not autoTpEnabled
 
-	if tpEnabled then
+	if autoTpEnabled then
 		toggleButton.Text = "ON"
 		toggleButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-
-		-- Сразу телепортируем
-		teleportToPixeledDust()
-
-		-- И продолжаем телепортировать каждый кадр, чтобы удерживать позицию
-		connection = RunService.Heartbeat:Connect(function()
-			if tpEnabled then
-				teleportToPixeledDust()
-			end
-		end)
+		isInsidePart = false
+		setupTouchDetection()
+		startTeleportLoop()
 	else
 		toggleButton.Text = "OFF"
 		toggleButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-
-		if connection then
-			connection:Disconnect()
-			connection = nil
-		end
+		stopTeleportLoop()
+		disableTouchDetection()
 	end
 end)
 
