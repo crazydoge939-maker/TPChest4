@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -12,6 +13,8 @@ local isInsidePart = false
 local touchedConn = nil
 local touchEndedConn = nil
 local heartbeatConn = nil
+local currentPixeledDust = nil
+local dustDestroyedConn = nil
 
 -- Создание GUI
 local screenGui = Instance.new("ScreenGui")
@@ -127,10 +130,30 @@ local function isPlayerPart(hit)
 	return false
 end
 
+-- Отключение событий касания и отслеживания удаления
+local function disableTouchDetection()
+	if touchedConn then
+		touchedConn:Disconnect()
+		touchedConn = nil
+	end
+	if touchEndedConn then
+		touchEndedConn:Disconnect()
+		touchEndedConn = nil
+	end
+	if dustDestroyedConn then
+		dustDestroyedConn:Disconnect()
+		dustDestroyedConn = nil
+	end
+	currentPixeledDust = nil
+	isInsidePart = false
+end
+
 -- Подключение событий касания
 local function setupTouchDetection()
 	local pixeledDust = findPixeledDust()
 	if not pixeledDust then return end
+
+	currentPixeledDust = pixeledDust
 
 	touchedConn = pixeledDust.Touched:Connect(function(hit)
 		if not isPlayerPart(hit) then return end
@@ -159,6 +182,18 @@ local function setupTouchDetection()
 			isInsidePart = false
 		end
 	end)
+
+	-- Отслеживание удаления текущего PixeledDust
+	dustDestroyedConn = pixeledDust.AncestryChanged:Connect(function(child, parent)
+		if parent == nil then
+			-- PixeledDust удалён — сбрасываем состояние и переподключаемся к новому
+			disableTouchDetection()
+			if autoTpEnabled then
+				task.wait(0.1)
+				setupTouchDetection()
+			end
+		end
+	end)
 end
 
 -- Запуск цикла телепорта: телепортирует, если игрок НЕ в PixeledDust
@@ -178,18 +213,17 @@ local function stopTeleportLoop()
 	end
 end
 
--- Отключение событий касания
-local function disableTouchDetection()
-	if touchedConn then
-		touchedConn:Disconnect()
-		touchedConn = nil
+
+
+-- Отслеживание появления нового PixeledDust в Workspace
+workspace.DescendantAdded:Connect(function(descendant)
+	if descendant:IsA("BasePart") and descendant.Name == "PixeledDust" then
+		if autoTpEnabled and (currentPixeledDust == nil or currentPixeledDust.Parent == nil) then
+			disableTouchDetection()
+			setupTouchDetection()
+		end
 	end
-	if touchEndedConn then
-		touchEndedConn:Disconnect()
-		touchEndedConn = nil
-	end
-	isInsidePart = false
-end
+end)
 
 -- Обновление персонажа при респавне
 player.CharacterAdded:Connect(function(char)
