@@ -1,8 +1,19 @@
-
 local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
+local character = nil
+local humanoidRootPart = nil
+local humanoid = nil
+
+local function onCharacterAdded(newCharacter)
+	character = newCharacter
+	humanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+	humanoid = newCharacter:WaitForChild("Humanoid")
+end
+
+-- Инициализация текущего персонажа
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
 
 local runService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,7 +21,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
@@ -175,8 +186,10 @@ end
 
 -- Обновление координат
 runService.RenderStepped:Connect(function()
-	local pos = humanoidRootPart.Position
-	coordsLabel.Text = string.format("[X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+	if humanoidRootPart and humanoidRootPart.Parent then
+		local pos = humanoidRootPart.Position
+		coordsLabel.Text = string.format("[X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+	end
 end)
 
 -- Основной цикл для обновления счетчиков
@@ -215,6 +228,7 @@ local teleporting = false
 
 local function teleportToPart(part)
 	if not part then return end
+	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
 	wait(0.1)
@@ -295,6 +309,7 @@ end
 -- Вспомогательная функция: телепорт к ближайшему объекту из списка
 local function teleportToNearest(accessibleList)
 	if #accessibleList == 0 then return nil end
+	if not humanoidRootPart or not humanoidRootPart.Parent then return nil end
 	table.sort(accessibleList, function(a, b)
 		local distA = (a.Position - humanoidRootPart.Position).Magnitude
 		local distB = (b.Position - humanoidRootPart.Position).Magnitude
@@ -333,6 +348,12 @@ local function ensureCombinedCycle()
 				skipObjects = {}
 				failedAttempts = {}
 				return
+			end
+
+			-- Если персонаж мёртв или не загружен — пропускаем итерацию
+			if not humanoidRootPart or not humanoidRootPart.Parent then
+				wait(cooldownSeconds)
+				continue
 			end
 
 			local bothEnabled = teleportingChests and teleportingItems
@@ -414,16 +435,18 @@ end)
 -- Ноклип режим (в Heartbeat)
 runService.Heartbeat:Connect(function()
 	if noclipEnabled then
-		humanoidRootPart.CanCollide = false
-		local hrpPos = humanoidRootPart.Position
-		for _, part in pairs(workspace:GetDescendants()) do
-			if part:IsA("BasePart") then
-				local distance = (part.Position - hrpPos).magnitude
-				if distance <= 80 then
-					if not storedObjects[part] then
-						storedObjects[part] = part.CanCollide
+		if humanoidRootPart and humanoidRootPart.Parent then
+			humanoidRootPart.CanCollide = false
+			local hrpPos = humanoidRootPart.Position
+			for _, part in pairs(workspace:GetDescendants()) do
+				if part:IsA("BasePart") then
+					local distance = (part.Position - hrpPos).magnitude
+					if distance <= 80 then
+						if not storedObjects[part] then
+							storedObjects[part] = part.CanCollide
+						end
+						part.CanCollide = false
 					end
-					part.CanCollide = false
 				end
 			end
 		end
@@ -434,7 +457,9 @@ runService.Heartbeat:Connect(function()
 			end
 		end
 		storedObjects = {}
-		humanoidRootPart.CanCollide = true
+		if humanoidRootPart and humanoidRootPart.Parent then
+			humanoidRootPart.CanCollide = true
+		end
 	end
 end)
 
@@ -518,6 +543,7 @@ end)
 -- ТП для другого объекта
 local function teleportPlayerToObject(target)
 	if not target then return end
+	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(target.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
 	wait(0.1)
