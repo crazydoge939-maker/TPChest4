@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
@@ -9,7 +10,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
@@ -276,99 +277,93 @@ local failedAttempts = {} -- [part] = count — счётчик неудачны�
 local MAX_FAILED_ATTEMPTS = 3
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
 
-local function startTeleportCycleChests()
-	if teleportingChests then return end
-	teleportingChests = true
-	startChestButton.Text = "Сундуки [ON]"
-	startChestButton.BackgroundColor3 = Color3.fromRGB(136, 45, 0)
-	startChestButton.BorderColor3 = Color3.new(1, 0.333333, 0)
-	startChestButton.TextColor3 = Color3.new(1, 0.333333, 0)
-	coroutine.wrap(function()
-		while teleportingChests do
-			local chests = getAllObjectsByNames({"chests"})
-			local accessibleChests = {}
-			for _, chest in pairs(chests) do
-				if chest.Parent and not skipObjects[chest] then
-					local y = chest.Position.Y
-					if y >= MinHeight and y <= MaxHeight then
-						table.insert(accessibleChests, chest)
-					end
-				end
+-- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
+local function getAccessibleObjects(names)
+	local objects = getAllObjectsByNames(names)
+	local accessible = {}
+	for _, obj in pairs(objects) do
+		if obj.Parent and not skipObjects[obj] then
+			local y = obj.Position.Y
+			if y >= MinHeight and y <= MaxHeight then
+				table.insert(accessible, obj)
 			end
-			if #accessibleChests > 0 then
-				table.sort(accessibleChests, function(a, b)
-					local distA = (a.Position - humanoidRootPart.Position).Magnitude
-					local distB = (b.Position - humanoidRootPart.Position).Magnitude
-					return distA < distB
-				end)
-				local selected = accessibleChests[1]
-				teleportToPart(selected)
-
-				-- Проверяем, собрался ли целевой объект
-				task.wait(0.5)
-				if selected.Parent then
-					failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
-					if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
-						skipObjects[selected] = true
-					end
-				else
-					-- Объект собран — очищаем счётчики
-					failedAttempts[selected] = nil
-					skipObjects[selected] = nil
-				end
-			end
-			wait(cooldownSeconds)
 		end
-		-- При остановке очищаем счётчики
-		skipObjects = {}
-		failedAttempts = {}
-	end)()
+	end
+	return accessible
 end
 
-local function startTeleportCycleItems()
-	if teleportingItems then return end
-	teleportingItems = true
-	startItemButton.Text = "Предметы [ON]"
-	startItemButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
-	startItemButton.BorderColor3 = Color3.new(0, 1, 1)
-	startItemButton.TextColor3 = Color3.new(0, 1, 1)
-	coroutine.wrap(function()
-		while teleportingItems do
-			local items = getAllObjectsByNames({"other"})
-			local accessibleItems = {}
-			for _, item in pairs(items) do
-				if item.Parent and not skipObjects[item] then
-					local y = item.Position.Y
-					if y >= MinHeight and y <= MaxHeight then
-						table.insert(accessibleItems, item)
-					end
-				end
-			end
-			if #accessibleItems > 0 then
-				table.sort(accessibleItems, function(a, b)
-					local distA = (a.Position - humanoidRootPart.Position).Magnitude
-					local distB = (b.Position - humanoidRootPart.Position).Magnitude
-					return distA < distB
-				end)
-				local selected = accessibleItems[1]
-				teleportToPart(selected)
+-- Вспомогательная функция: телепорт к ближайшему объекту из списка
+local function teleportToNearest(accessibleList)
+	if #accessibleList == 0 then return nil end
+	table.sort(accessibleList, function(a, b)
+		local distA = (a.Position - humanoidRootPart.Position).Magnitude
+		local distB = (b.Position - humanoidRootPart.Position).Magnitude
+		return distA < distB
+	end)
+	local selected = accessibleList[1]
+	teleportToPart(selected)
 
-				-- Проверяем, собрался ли целевой объект
-				task.wait(0.5)
-				if selected.Parent then
-					failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
-					if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
-						skipObjects[selected] = true
-					end
+	-- Проверяем, собрался ли целевой объект
+	task.wait(0.5)
+	if selected.Parent then
+		failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
+		if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
+			skipObjects[selected] = true
+		end
+	else
+		-- Объект собран — очищаем счётчики
+		failedAttempts[selected] = nil
+		skipObjects[selected] = nil
+	end
+	return selected
+end
+
+-- Объединённый цикл телепортации с приоритетом
+local combinedCycleRunning = false
+
+local function ensureCombinedCycle()
+	if combinedCycleRunning then return end
+	combinedCycleRunning = true
+
+	coroutine.wrap(function()
+		while combinedCycleRunning do
+			-- Если оба режима выключены — останавливаем цикл
+			if not teleportingChests and not teleportingItems then
+				combinedCycleRunning = false
+				skipObjects = {}
+				failedAttempts = {}
+				return
+			end
+
+			local bothEnabled = teleportingChests and teleportingItems
+
+			if bothEnabled then
+				-- Приоритет: сначала сундуки, потом предметы
+				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
+				local chests = getAccessibleObjects({"chests"})
+				if #chests > 0 then
+					teleportToNearest(chests)
 				else
-					-- Объект собран — очищаем счётчики
-					failedAttempts[selected] = nil
-					skipObjects[selected] = nil
+					-- Сундуков нет (или все пропущены) — переключаемся на предметы
+					local items = getAccessibleObjects({"other"})
+					if #items > 0 then
+						teleportToNearest(items)
+					end
+				end
+			elseif teleportingChests then
+				local chests = getAccessibleObjects({"chests"})
+				if #chests > 0 then
+					teleportToNearest(chests)
+				end
+			elseif teleportingItems then
+				local items = getAccessibleObjects({"other"})
+				if #items > 0 then
+					teleportToNearest(items)
 				end
 			end
+
 			wait(cooldownSeconds)
 		end
-		-- При остановке очищаем счётчики
 		skipObjects = {}
 		failedAttempts = {}
 	end)()
@@ -482,6 +477,7 @@ local function stopTeleportCycleChests()
 	startChestButton.BackgroundColor3 = Color3.fromRGB(38, 13, 0)
 	startChestButton.BorderColor3 = Color3.new(0.666667, 0.333333, 0)
 	startChestButton.TextColor3 = Color3.new(0.666667, 0.333333, 0)
+	-- Если оба режима выключены, цикл остановится сам на следующей итерации
 end
 
 local function stopTeleportCycleItems()
@@ -490,13 +486,19 @@ local function stopTeleportCycleItems()
 	startItemButton.BackgroundColor3 = Color3.fromRGB(0, 49, 74)
 	startItemButton.BorderColor3 = Color3.new(0, 0.666667, 1)
 	startItemButton.TextColor3 = Color3.new(0, 0.666667, 1)
+	-- Если оба режима выключены, цикл остановится сам на следующей итерации
 end
 
 startChestButton.MouseButton1Click:Connect(function()
 	if teleportingChests then
 		stopTeleportCycleChests()
 	else
-		startTeleportCycleChests()
+		teleportingChests = true
+		startChestButton.Text = "Сундуки [ON]"
+		startChestButton.BackgroundColor3 = Color3.fromRGB(136, 45, 0)
+		startChestButton.BorderColor3 = Color3.new(1, 0.333333, 0)
+		startChestButton.TextColor3 = Color3.new(1, 0.333333, 0)
+		ensureCombinedCycle()
 	end
 end)
 
@@ -504,7 +506,12 @@ startItemButton.MouseButton1Click:Connect(function()
 	if teleportingItems then
 		stopTeleportCycleItems()
 	else
-		startTeleportCycleItems()
+		teleportingItems = true
+		startItemButton.Text = "Предметы [ON]"
+		startItemButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
+		startItemButton.BorderColor3 = Color3.new(0, 1, 1)
+		startItemButton.TextColor3 = Color3.new(0, 1, 1)
+		ensureCombinedCycle()
 	end
 end)
 
