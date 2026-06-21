@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -175,12 +176,12 @@ local function getAllObjectsByNames(names)
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests"})
+	local chests = getAllObjectsByNames({"chests", "Dark Chest_p", "Light Chest_p"})
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag"})
+	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
@@ -366,7 +367,7 @@ local function ensureCombinedCycle()
 					teleportToNearest(chests)
 				else
 					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag"})
+					local items = getAccessibleObjects({"other"})
 					if #items > 0 then
 						teleportToNearest(items)
 					end
@@ -377,7 +378,7 @@ local function ensureCombinedCycle()
 					teleportToNearest(chests)
 				end
 			elseif teleportingItems then
-				local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag"})
+				local items = getAccessibleObjects({"other"})
 				if #items > 0 then
 					teleportToNearest(items)
 				end
@@ -426,7 +427,7 @@ local storedObjects = {} -- таблица для хранения объект�
 spawn(function()
 	while true do
 		if promptAutoActivate then
-			activateAllNearbyPrompts({"chests", "other", "Toll-096 Loot Bag", "Trollge King Loot Bag"})
+			activateAllNearbyPrompts({"chests", "other"})
 		end
 		task.wait(0.3)
 	end
