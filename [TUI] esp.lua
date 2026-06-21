@@ -24,6 +24,43 @@ local TweenService = game:GetService("TweenService")
 local MinHeight = 110
 local MaxHeight = 210
 
+-- Списки имён для поиска
+local CHEST_NAMES = {
+	"Chest_p", 
+	"Dark Chest_p", 
+	"Light Chest_p",
+	"Skin Chest_p",
+}
+
+local ITEM_NAMES = {
+	"Gold_p", 
+	"Metal_p", 
+	"Rusty Metal_p", 
+	"Stone_p", 
+	"Wood_p", 
+	"Leather_p", 
+	"Line Paper_p", 
+	"Meat_p", 
+	"Rope_p", 
+	"Holy Chain_p", 
+	"Shattered Chain_p", 
+	"Orb_p", 
+	"Cursed Orb_p", 
+	"Holy Orb_p", 
+	
+	"Kings Arm_p",
+	
+	"Toll-096 Loot Bag", 
+	"Trollge King Loot Bag",
+	
+	"Saints Head_p", 
+	"Saints Torso_p",
+	"Saints Leg_p", 
+	"Saints Arm_p",
+	"Saints Finger_p", 
+	"Saints Eyes_p",
+}
+
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
@@ -162,7 +199,7 @@ coordsLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 -- Получение всех объектов по именам
 local function getAllObjectsByNames(names)
 	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
+	for _, model in pairs(game:GetDescendants()) do
 		if model:IsA("Model") and table.find(names, model.Name) then
 			for _, child in pairs(model:GetChildren()) do
 				if child:IsA("BasePart") then
@@ -175,12 +212,12 @@ local function getAllObjectsByNames(names)
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests"})
+	local chests = getAllObjectsByNames(CHEST_NAMES)
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other"})
+	local items = getAllObjectsByNames(ITEM_NAMES)
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
@@ -257,7 +294,7 @@ local function activateAllNearbyPrompts(modelNames)
 
 	local promptsToActivate = {}
 	for _, modelName in ipairs(modelNames) do
-		for _, model in ipairs(workspace:GetDescendants()) do
+		for _, model in ipairs(game:GetDescendants()) do
 			if model:IsA("Model") and model.Name == modelName then
 				for _, descendant in ipairs(model:GetDescendants()) do
 					if descendant:IsA("ProximityPrompt") and descendant.Enabled then
@@ -361,23 +398,23 @@ local function ensureCombinedCycle()
 			if bothEnabled then
 				-- Приоритет: сначала сундуки, потом предметы
 				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
-				local chests = getAccessibleObjects({"chests"})
+				local chests = getAccessibleObjects(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
 				else
 					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects({"other"})
+					local items = getAccessibleObjects(ITEM_NAMES)
 					if #items > 0 then
 						teleportToNearest(items)
 					end
 				end
 			elseif teleportingChests then
-				local chests = getAccessibleObjects({"chests"})
+				local chests = getAccessibleObjects(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
 				end
 			elseif teleportingItems then
-				local items = getAccessibleObjects({"other"})
+				local items = getAccessibleObjects(ITEM_NAMES)
 				if #items > 0 then
 					teleportToNearest(items)
 				end
@@ -426,7 +463,10 @@ local storedObjects = {} -- таблица для хранения объект�
 spawn(function()
 	while true do
 		if promptAutoActivate then
-			activateAllNearbyPrompts({"chests", "other"})
+			local allNames = {}
+			for _, name in ipairs(CHEST_NAMES) do table.insert(allNames, name) end
+			for _, name in ipairs(ITEM_NAMES) do table.insert(allNames, name) end
+			activateAllNearbyPrompts(allNames)
 		end
 		task.wait(0.3)
 	end
