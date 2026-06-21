@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -31,7 +31,7 @@ local CHEST_NAMES = {
 
 local ITEM_NAMES = {
 	"other", 
-	"Toll-096 Loot Bag", 
+	"Troll-096 Loot Bag", 
 	"Trollge King Loot Bag", 
 	"Saints Head_p", 
 	"Saints Torso_p", 
