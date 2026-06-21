@@ -175,12 +175,12 @@ local function getAllObjectsByNames(names)
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests", "Dark Chest_p", "Light Chest_p"})
+	local chests = getAllObjectsByNames({"chests"})
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag"})
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
