@@ -21,7 +21,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
