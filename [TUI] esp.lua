@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -491,10 +491,9 @@ togglePromptBtn.MouseButton1Click:Connect(function()
 	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
 end)
 
--- Переменные для нокаипа
+-- Переменные для ноклипа
 local noclipEnabled = false
 local noclipButton
-local storedObjects = {} -- таблица для хранения объектов и их исходных CanCollide
 
 -- Отдельный цикл для авто-сбора промптов (0.5 сек вместо 0.3)
 task.spawn(function()
