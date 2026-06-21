@@ -21,7 +21,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
@@ -162,12 +162,10 @@ coordsLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 -- Получение всех объектов по именам
 local function getAllObjectsByNames(names)
 	local objects = {}
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and table.find(names, model.Name) then
-			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") or child:IsA("MeshPart") or child:IsA("UnionOperation") then
-					table.insert(objects, child)
-				end
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
+			if table.find(names, descendant.Name) then
+				table.insert(objects, descendant)
 			end
 		end
 	end
