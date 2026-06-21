@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -22,7 +21,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
@@ -166,7 +165,7 @@ local function getAllObjectsByNames(names)
 	for _, model in pairs(workspace:GetDescendants()) do
 		if model:IsA("Model") and table.find(names, model.Name) then
 			for _, child in pairs(model:GetChildren()) do
-				if child:IsA("BasePart") then
+				if child:IsA("BasePart") or child:IsA("MeshPart") or child:IsA("UnionOperation") then
 					table.insert(objects, child)
 				end
 			end
