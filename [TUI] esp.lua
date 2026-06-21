@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -10,7 +9,6 @@ local function onCharacterAdded(newCharacter)
 	humanoid = newCharacter:WaitForChild("Humanoid")
 end
 
--- Инициализация текущего персонажа
 if player.Character then
 	onCharacterAdded(player.Character)
 end
@@ -25,17 +23,16 @@ local TweenService = game:GetService("TweenService")
 local MinHeight = 110
 local MaxHeight = 210
 
--- Полные списки имён для поиска
 local CHEST_NAMES = {"chests", "Dark Chest_p", "Light Chest_p"}
 local ITEM_NAMES = {"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"}
 
--- Создаем ScreenGui
+-- Создаем UI (оставлю без изменений, так как это не нагружает сильно)
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportChestPanel"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Основная панель
 local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0.13, 0, 0.375, 0)
 panel.Position = UDim2.new(0.45, 0, 0.25, 0)
@@ -44,7 +41,8 @@ panel.BorderSizePixel = 4
 panel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 panel.Parent = screenGui
 
--- Перетаскивание панели
+-- Перетаскивание (оставлю как есть)
+
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -67,7 +65,7 @@ panel.InputChanged:Connect(function(input)
 	end
 end)
 
-runService.RenderStepped:Connect(function()
+runService.Heartbeat:Connect(function()
 	if dragging and dragInput then
 		local delta = dragInput.Position - dragStart
 		panel.Position = UDim2.new(
@@ -79,7 +77,6 @@ runService.RenderStepped:Connect(function()
 	end
 end)
 
--- Заголовок
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0.12, 0)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -91,7 +88,6 @@ title.TextScaled = true
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Parent = panel
 
--- Кнопки [Старт / Стоп] Chest
 local startChestButton = Instance.new("TextButton")
 startChestButton.Size = UDim2.new(0.4, 0, 0.2, 0)
 startChestButton.Position = UDim2.new(0.05, 0, 0.425, 0)
@@ -105,9 +101,6 @@ startChestButton.Text = "Сундуки [OFF]"
 startChestButton.TextColor3 = Color3.new(0.666667, 0.333333, 0)
 startChestButton.Parent = panel
 
-
-
--- Кнопки [Старт / Стоп] Item
 local startItemButton = Instance.new("TextButton")
 startItemButton.Size = UDim2.new(0.4, 0, 0.2, 0)
 startItemButton.Position = UDim2.new(0.54, 0, 0.425, 0)
@@ -121,15 +114,11 @@ startItemButton.Text = "Предметы [OFF]"
 startItemButton.TextColor3 = Color3.new(0, 0.666667, 1)
 startItemButton.Parent = panel
 
-
-
--- Метки
 local chestCountLabel = Instance.new("TextLabel")
 chestCountLabel.Size = UDim2.new(0.4, 0, 0.275, 0)
 chestCountLabel.Position = UDim2.new(0.05, 0, 0.13, 0)
 chestCountLabel.BackgroundColor3 = Color3.fromRGB(139, 46, 0)
 chestCountLabel.BorderSizePixel = 0
-chestCountLabel.BorderColor3 = Color3.new(1, 0.333333, 0)
 chestCountLabel.Text = "Сундуков [0]"
 chestCountLabel.Font = Enum.Font.Michroma
 chestCountLabel.TextSize = 16
@@ -164,7 +153,11 @@ coordsLabel.Parent = panel
 coordsLabel.BorderSizePixel = 2
 coordsLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 
--- Получение всех объектов по именам (Model + Part/MeshPart/UnionOperation напрямую)
+-- Кеширование объектов
+local chestsCache = {}
+local itemsCache = {}
+local lastCacheUpdate = 0
+
 local function getAllObjectsByNames(names)
 	local objects = {}
 	for _, descendant in pairs(workspace:GetDescendants()) do
@@ -181,34 +174,51 @@ local function getAllObjectsByNames(names)
 	return objects
 end
 
-local function updateChestCount()
-	local chests = getAllObjectsByNames(CHEST_NAMES)
-	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
+local function updateObjectCaches()
+	chestsCache = getAllObjectsByNames(CHEST_NAMES)
+	itemsCache = getAllObjectsByNames(ITEM_NAMES)
 end
 
-local function updateItemCount()
-	local items = getAllObjectsByNames(ITEM_NAMES)
-	itemCountLabel.Text = "Предметов [" .. #items .. "]"
-end
+-- Обновлять кеш раз в 1 секунду
+runService.Heartbeat:Connect(function(step)
+	lastCacheUpdate = lastCacheUpdate + step
+	if lastCacheUpdate >= 1 then
+		updateObjectCaches()
+		lastCacheUpdate = 0
+	end
+end)
 
 -- Обновление координат
-runService.RenderStepped:Connect(function()
-	if humanoidRootPart and humanoidRootPart.Parent then
-		local pos = humanoidRootPart.Position
-		coordsLabel.Text = string.format("[X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+local lastCoordsUpdate = 0
+local coordsUpdateInterval = 0.2
+runService.Heartbeat:Connect(function(step)
+	lastCoordsUpdate = lastCoordsUpdate + step
+	if lastCoordsUpdate >= coordsUpdateInterval then
+		if humanoidRootPart and humanoidRootPart.Parent then
+			local pos = humanoidRootPart.Position
+			coordsLabel.Text = string.format("[X=%.1f, Y=%.1f, Z=%.1f]", pos.X, pos.Y, pos.Z)
+		end
+		lastCoordsUpdate = 0
 	end
 end)
 
--- Основной цикл для обновления счетчиков
-spawn(function()
-	while true do
-		updateChestCount()
-		updateItemCount()
-		wait(0.2)
+-- Обновление счетчиков
+local lastCountsUpdate = 0
+local countsUpdateInterval = 0.5
+local function updateCounts()
+	chestCountLabel.Text = "Сундуков [" .. #chestsCache .. "]"
+	itemCountLabel.Text = "Предметов [" .. #itemsCache .. "]"
+end
+
+runService.Heartbeat:Connect(function(step)
+	lastCountsUpdate = lastCountsUpdate + step
+	if lastCountsUpdate >= countsUpdateInterval then
+		updateCounts()
+		lastCountsUpdate = 0
 	end
 end)
 
--- Кулдаун и управление
+-- Кулдаун
 local cooldownSeconds = 1
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
@@ -232,22 +242,24 @@ cooldownBox.FocusLost:Connect(function()
 end)
 
 local teleporting = false
+local lastTeleportTime = 0
 
+-- Функция телепорта
 local function teleportToPart(part)
 	if not part then return end
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
-	wait(0.1)
+	task.wait(0.1)
 	humanoidRootPart.CanCollide = true
 end
 
-local promptDebounce = {} -- трекинг уже активируемых промптов
+-- Активация промптов
+local promptDebounce = {} -- чтобы не активировать один промпт несколько раз
 
 local function activatePrompt(prompt)
 	if not prompt or not prompt.Enabled then return end
 	if not prompt.Parent or not prompt.Parent:IsA("BasePart") then return end
-	-- Не активируем промпт, если он уже в процессе
 	if promptDebounce[prompt] then return end
 	promptDebounce[prompt] = true
 	prompt:InputHoldBegin()
@@ -257,95 +269,95 @@ local function activatePrompt(prompt)
 	promptDebounce[prompt] = nil
 end
 
--- Активация всех промптов поблизости одновременно
 local function activateAllNearbyPrompts(modelNames)
 	local hrp = humanoidRootPart
 	if not hrp or not hrp.Parent then return 0 end
-
-	local promptsToActivate = {}
+	local count = 0
 	for _, modelName in ipairs(modelNames) do
-		for _, descendant in ipairs(workspace:GetDescendants()) do
-			local targetDescendants = {}
+		for _, descendant in pairs(workspace:GetDescendants()) do
+			local targets = {}
 			if descendant:IsA("Model") and descendant.Name == modelName then
-				targetDescendants = descendant:GetDescendants()
+				targets = descendant:GetDescendants()
 			elseif (descendant:IsA("Part") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation")) and descendant.Name == modelName then
-				targetDescendants = descendant:GetDescendants()
+				targets = {descendant}
 			end
-
-			for _, obj in ipairs(targetDescendants) do
-				if obj:IsA("ProximityPrompt") and obj.Enabled then
-					if obj.Parent and obj.Parent:IsA("BasePart") then
-						obj.HoldDuration = 0
-						obj.MaxActivationDistance = 20
-						local distance = (hrp.Position - obj.Parent.Position).Magnitude
-						if distance <= obj.MaxActivationDistance and not promptDebounce[obj] then
-							table.insert(promptsToActivate, obj)
-						end
+			for _, obj in ipairs(targets) do
+				if obj:IsA("ProximityPrompt") and obj.Enabled and obj.Parent and obj.Parent:IsA("BasePart") then
+					local dist = (hrp.Position - obj.Parent.Position).Magnitude
+					if dist <= 20 and not promptDebounce[obj] then
+						coroutine.wrap(activatePrompt)(obj)
+						count = count + 1
 					end
 				end
 			end
 		end
 	end
-
-	-- Активируем все промпты одновременно через отдельные корутины
-	for _, prompt in ipairs(promptsToActivate) do
-		coroutine.wrap(activatePrompt)(prompt)
-	end
-
-	return #promptsToActivate
+	return count
 end
 
+-- Управление телепортом
 local teleportingChests = false
 local teleportingItems = false
-
-local skipObjects = {} -- [part] = true — объекты, пропускаемые после 3 неудачных попыток
-local failedAttempts = {} -- [part] = count — счётчик неудачных телепортов
+local skipObjects = {} -- [part] = true
+local failedAttempts = {} -- [part] = count
 local MAX_FAILED_ATTEMPTS = 3
-local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
+local NEARBY_RADIUS = 25
 
--- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
 local function getAccessibleObjects(names)
-	local objects = getAllObjectsByNames(names)
-	local accessible = {}
-	for _, obj in pairs(objects) do
-		if obj.Parent and not skipObjects[obj] then
+	local objects = {}
+	for _, obj in ipairs(chestsCache) do
+		if not skipObjects[obj] then
 			local y = obj.Position.Y
 			if y >= MinHeight and y <= MaxHeight then
-				table.insert(accessible, obj)
+				table.insert(objects, obj)
 			end
 		end
 	end
-	return accessible
-end
-
--- Вспомогательная функция: телепорт к ближайшему объекту из списка
-local function teleportToNearest(accessibleList)
-	if #accessibleList == 0 then return nil end
-	if not humanoidRootPart or not humanoidRootPart.Parent then return nil end
-	table.sort(accessibleList, function(a, b)
-		local distA = (a.Position - humanoidRootPart.Position).Magnitude
-		local distB = (b.Position - humanoidRootPart.Position).Magnitude
-		return distA < distB
-	end)
-	local selected = accessibleList[1]
-	teleportToPart(selected)
-
-	-- Проверяем, собрался ли целевой объект
-	task.wait(0.5)
-	if selected.Parent then
-		failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
-		if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
-			skipObjects[selected] = true
+	for _, obj in ipairs(itemsCache) do
+		if not skipObjects[obj] then
+			local y = obj.Position.Y
+			if y >= MinHeight and y <= MaxHeight then
+				table.insert(objects, obj)
+			end
 		end
-	else
-		-- Объект собран — очищаем счётчики
-		failedAttempts[selected] = nil
-		skipObjects[selected] = nil
 	end
-	return selected
+	return objects
 end
 
--- Объединённый цикл телепортации с приоритетом
+local function getClosestObject(objects)
+	if #objects == 0 then return nil end
+	local minDist = math.huge
+	local closest = nil
+	local hrpPos = humanoidRootPart and humanoidRootPart.Position
+	if not hrpPos then return nil end
+	for _, obj in ipairs(objects) do
+		local dist = (obj.Position - hrpPos).Magnitude
+		if dist < minDist then
+			minDist = dist
+			closest = obj
+		end
+	end
+	return closest
+end
+
+local function teleportToNearest(objects)
+	local target = getClosestObject(objects)
+	if target then
+		teleportToPart(target)
+		-- Проверка
+		task.wait(0.5)
+		if target.Parent then
+			failedAttempts[target] = (failedAttempts[target] or 0) + 1
+			if failedAttempts[target] >= MAX_FAILED_ATTEMPTS then
+				skipObjects[target] = true
+			end
+		else
+			failedAttempts[target] = nil
+			skipObjects[target] = nil
+		end
+	end
+end
+
 local combinedCycleRunning = false
 
 local function ensureCombinedCycle()
@@ -353,16 +365,18 @@ local function ensureCombinedCycle()
 	combinedCycleRunning = true
 
 	coroutine.wrap(function()
-		while combinedCycleRunning do
-			-- Если оба режима выключены — останавливаем цикл
-			if not teleportingChests and not teleportingItems then
-				combinedCycleRunning = false
-				skipObjects = {}
-				failedAttempts = {}
-				return
+		while true do
+			if not (teleportingChests or teleportingItems) then
+				-- остановить цикл
+				break
 			end
 
-			-- Если персонаж мёртв или не загружен — пропускаем итерацию
+			-- Проверка таймаута по кулдауну
+			local now = tick()
+			if now - lastTeleportTime < cooldownSeconds then
+				wait(cooldownSeconds - (now - lastTeleportTime))
+			end
+
 			if not humanoidRootPart or not humanoidRootPart.Parent then
 				wait(cooldownSeconds)
 				continue
@@ -371,55 +385,59 @@ local function ensureCombinedCycle()
 			local bothEnabled = teleportingChests and teleportingItems
 
 			if bothEnabled then
-				-- Приоритет: сначала сундуки, потом предметы
-				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
-				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
+				local chests = getAllObjectsByNames(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
+					lastTeleportTime = tick()
 				else
-					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+					local items = getAllObjectsByNames(ITEM_NAMES)
 					if #items > 0 then
 						teleportToNearest(items)
+						lastTeleportTime = tick()
 					end
 				end
 			elseif teleportingChests then
-				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
+				local chests = getAllObjectsByNames(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
+					lastTeleportTime = tick()
 				end
 			elseif teleportingItems then
-				local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+				local items = getAllObjectsByNames(ITEM_NAMES)
 				if #items > 0 then
 					teleportToNearest(items)
+					lastTeleportTime = tick()
 				end
 			end
 
 			wait(cooldownSeconds)
 		end
+		-- Сброс
 		skipObjects = {}
 		failedAttempts = {}
+		combinedCycleRunning = false
 	end)()
 end
 
+-- Обработчики кнопок
 local function createButtonWithOutline(text, size, position, color, parent)
-	local button = Instance.new("TextButton")
-	button.Text = text
-	button.Size = size
-	button.Position = position
-	button.BackgroundColor3 = color
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.TextStrokeColor3 = Color3.new(0,0,0)
-	button.TextStrokeTransparency = 0
-	button.Font = Enum.Font.Michroma
-	button.BorderSizePixel = 2
-	button.BorderColor3 = Color3.fromRGB(255, 255, 255)
-	button.TextScaled = true
-	button.Parent = parent
-	return button
+	local btn = Instance.new("TextButton")
+	btn.Text = text
+	btn.Size = size
+	btn.Position = position
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.TextStrokeColor3 = Color3.new(0, 0, 0)
+	btn.TextStrokeTransparency = 0
+	btn.Font = Enum.Font.Michroma
+	btn.BorderSizePixel = 2
+	btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextScaled = true
+	btn.Parent = parent
+	return btn
 end
 
-local promptAutoActivate = false -- состояние автоподтверждения Prompts
+local promptAutoActivate = false
 
 local togglePromptBtn = createButtonWithOutline("Авто сбор [OFF]", UDim2.new(0.6, 0, 0.1, 0), UDim2.new(0.345, 0, 0.65, 0), Color3.fromRGB(24, 0, 36), panel)
 
@@ -429,31 +447,19 @@ togglePromptBtn.MouseButton1Click:Connect(function()
 	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
 end)
 
--- Переменные для нокаипа
+-- Ноклип режим
 local noclipEnabled = false
-local noclipButton
-local storedObjects = {} -- таблица для хранения объектов и их исходных CanCollide
+local storedObjects = {}
 
--- Отдельный цикл для авто-сбора промптов
-spawn(function()
-	while true do
-		if promptAutoActivate then
-			activateAllNearbyPrompts(CHEST_NAMES)
-			activateAllNearbyPrompts(ITEM_NAMES)
-		end
-		task.wait(0.3)
-	end
-end)
-
--- Ноклип режим (в Heartbeat)
 runService.Heartbeat:Connect(function()
+	-- Ноклип
 	if noclipEnabled then
 		if humanoidRootPart and humanoidRootPart.Parent then
 			humanoidRootPart.CanCollide = false
 			local hrpPos = humanoidRootPart.Position
 			for _, part in pairs(workspace:GetDescendants()) do
 				if part:IsA("BasePart") then
-					local distance = (part.Position - hrpPos).magnitude
+					local distance = (part.Position - hrpPos).Magnitude
 					if distance <= 80 then
 						if not storedObjects[part] then
 							storedObjects[part] = part.CanCollide
@@ -464,9 +470,9 @@ runService.Heartbeat:Connect(function()
 			end
 		end
 	else
-		for obj, originalState in pairs(storedObjects) do
+		for obj, state in pairs(storedObjects) do
 			if obj and obj.Parent then
-				obj.CanCollide = originalState
+				obj.CanCollide = state
 			end
 		end
 		storedObjects = {}
@@ -476,89 +482,86 @@ runService.Heartbeat:Connect(function()
 	end
 end)
 
-
--- Создаем кнопку для нокаипа
 local function createNoclipButton()
-	noclipButton = createButtonWithOutline(
-		"NoClip [OFF]",
-		UDim2.new(0.6, 0, 0.1, 0),
-		UDim2.new(0.345, 0, 0.77, 0),
-		Color3.fromRGB(0, 0, 0),
-		panel
-	)
-
-	noclipButton.MouseButton1Click:Connect(function()
+	local btn = createButtonWithOutline("NoClip [OFF]", UDim2.new(0.6, 0, 0.1, 0), UDim2.new(0.345, 0, 0.77, 0), Color3.fromRGB(0, 0, 0), panel)
+	btn.MouseButton1Click:Connect(function()
 		noclipEnabled = not noclipEnabled
-		if noclipEnabled then
-			noclipButton.Text = "NoClip [ON]"
-			noclipButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		else
-			noclipButton.Text = "NoClip [OFF]"
-			noclipButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			-- при отключении восстанавливаем CanCollide
-			for obj, originalState in pairs(storedObjects) do
-				if obj and obj.Parent then
-					obj.CanCollide = originalState
-				end
-			end
-			-- очищаем таблицу после восстановления
-			storedObjects = {}
-		end
+		btn.Text = "NoClip " .. (noclipEnabled and "[ON]" or "[OFF]")
+		btn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
 	end)
 end
 
 createNoclipButton()
 
-local function stopTeleportCycleChests()
+-- Управление кнопками режима телепорта
+local function stopTeleportChests()
 	teleportingChests = false
 	startChestButton.Text = "Сундуки [OFF]"
 	startChestButton.BackgroundColor3 = Color3.fromRGB(38, 13, 0)
-	startChestButton.BorderColor3 = Color3.new(0.666667, 0.333333, 0)
-	startChestButton.TextColor3 = Color3.new(0.666667, 0.333333, 0)
-	-- Если оба режима выключены, цикл остановится сам на следующей итерации
 end
 
-local function stopTeleportCycleItems()
+local function stopTeleportItems()
 	teleportingItems = false
 	startItemButton.Text = "Предметы [OFF]"
 	startItemButton.BackgroundColor3 = Color3.fromRGB(0, 49, 74)
-	startItemButton.BorderColor3 = Color3.new(0, 0.666667, 1)
-	startItemButton.TextColor3 = Color3.new(0, 0.666667, 1)
-	-- Если оба режима выключены, цикл остановится сам на следующей итерации
 end
 
 startChestButton.MouseButton1Click:Connect(function()
 	if teleportingChests then
-		stopTeleportCycleChests()
+		stopTeleportChests()
 	else
 		teleportingChests = true
 		startChestButton.Text = "Сундуки [ON]"
 		startChestButton.BackgroundColor3 = Color3.fromRGB(136, 45, 0)
-		startChestButton.BorderColor3 = Color3.new(1, 0.333333, 0)
-		startChestButton.TextColor3 = Color3.new(1, 0.333333, 0)
 		ensureCombinedCycle()
 	end
 end)
 
 startItemButton.MouseButton1Click:Connect(function()
 	if teleportingItems then
-		stopTeleportCycleItems()
+		stopTeleportItems()
 	else
 		teleportingItems = true
 		startItemButton.Text = "Предметы [ON]"
 		startItemButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
-		startItemButton.BorderColor3 = Color3.new(0, 1, 1)
-		startItemButton.TextColor3 = Color3.new(0, 1, 1)
 		ensureCombinedCycle()
 	end
 end)
 
--- ТП для другого объекта
-local function teleportPlayerToObject(target)
-	if not target then return end
-	if not humanoidRootPart or not humanoidRootPart.Parent then return end
-	humanoidRootPart.CFrame = CFrame.new(target.Position + Vector3.new(0, 3, 0))
-	humanoidRootPart.CanCollide = false
-	wait(0.1)
-	humanoidRootPart.CanCollide = true
-end
+-- Автоматический сбор промптов
+spawn(function()
+	while true do
+		if promptAutoActivate then
+			activateAllNearbyPrompts(CHEST_NAMES)
+			activateAllNearbyPrompts(ITEM_NAMES)
+		end
+		task.wait(0.3)
+	end
+end)
+
+-- Основной цикл для телепорта
+local lastCycleTime = 0
+runService.Heartbeat:Connect(function(step)
+	lastCycleTime = lastCycleTime + step
+	if lastCycleTime >= 0.2 then -- интервал вызова цикла
+		if (teleportingChests or teleportingItems) and tick() - lastTeleportTime >= cooldownSeconds then
+			if humanoidRootPart and humanoidRootPart.Parent then
+				if teleportingChests then
+					local chests = getAllObjectsByNames(CHEST_NAMES)
+					if #chests > 0 then
+						teleportToNearest(chests)
+						lastTeleportTime = tick()
+					end
+				end
+				if teleportingItems then
+					local items = getAllObjectsByNames(ITEM_NAMES)
+					if #items > 0 then
+						teleportToNearest(items)
+						lastTeleportTime = tick()
+					end
+				end
+			end
+		end
+		lastCycleTime = 0
+	end
+end)
