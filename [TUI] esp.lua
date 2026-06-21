@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -23,6 +24,10 @@ local TweenService = game:GetService("TweenService")
 
 local MinHeight = 110
 local MaxHeight = 210
+
+-- Полные списки имён для поиска
+local CHEST_NAMES = {"chests", "Dark Chest_p", "Light Chest_p"}
+local ITEM_NAMES = {"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"}
 
 -- Создаем ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -159,26 +164,30 @@ coordsLabel.Parent = panel
 coordsLabel.BorderSizePixel = 2
 coordsLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
 
--- Получение всех объектов по именам
+-- Получение всех объектов по именам (Model + Part/MeshPart/UnionOperation напрямую)
 local function getAllObjectsByNames(names)
 	local objects = {}
-	for _, descendant in ipairs(workspace:GetDescendants()) do
-		if descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
-			if table.find(names, descendant.Name) then
-				table.insert(objects, descendant)
+	for _, descendant in pairs(workspace:GetDescendants()) do
+		if descendant:IsA("Model") and table.find(names, descendant.Name) then
+			for _, child in pairs(descendant:GetChildren()) do
+				if child:IsA("BasePart") then
+					table.insert(objects, child)
+				end
 			end
+		elseif (descendant:IsA("Part") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation")) and table.find(names, descendant.Name) then
+			table.insert(objects, descendant)
 		end
 	end
 	return objects
 end
 
 local function updateChestCount()
-	local chests = getAllObjectsByNames({"chests", "Dark Chest_p", "Light Chest_p"})
+	local chests = getAllObjectsByNames(CHEST_NAMES)
 	chestCountLabel.Text = "Сундуков [" .. #chests .. "]"
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+	local items = getAllObjectsByNames(ITEM_NAMES)
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
@@ -255,17 +264,22 @@ local function activateAllNearbyPrompts(modelNames)
 
 	local promptsToActivate = {}
 	for _, modelName in ipairs(modelNames) do
-		for _, model in ipairs(workspace:GetDescendants()) do
-			if model:IsA("Model") and model.Name == modelName then
-				for _, descendant in ipairs(model:GetDescendants()) do
-					if descendant:IsA("ProximityPrompt") and descendant.Enabled then
-						if descendant.Parent and descendant.Parent:IsA("BasePart") then
-							descendant.HoldDuration = 0
-							descendant.MaxActivationDistance = 20
-							local distance = (hrp.Position - descendant.Parent.Position).Magnitude
-							if distance <= descendant.MaxActivationDistance and not promptDebounce[descendant] then
-								table.insert(promptsToActivate, descendant)
-							end
+		for _, descendant in ipairs(workspace:GetDescendants()) do
+			local targetDescendants = {}
+			if descendant:IsA("Model") and descendant.Name == modelName then
+				targetDescendants = descendant:GetDescendants()
+			elseif (descendant:IsA("Part") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation")) and descendant.Name == modelName then
+				targetDescendants = descendant:GetDescendants()
+			end
+
+			for _, obj in ipairs(targetDescendants) do
+				if obj:IsA("ProximityPrompt") and obj.Enabled then
+					if obj.Parent and obj.Parent:IsA("BasePart") then
+						obj.HoldDuration = 0
+						obj.MaxActivationDistance = 20
+						local distance = (hrp.Position - obj.Parent.Position).Magnitude
+						if distance <= obj.MaxActivationDistance and not promptDebounce[obj] then
+							table.insert(promptsToActivate, obj)
 						end
 					end
 				end
@@ -359,23 +373,23 @@ local function ensureCombinedCycle()
 			if bothEnabled then
 				-- Приоритет: сначала сундуки, потом предметы
 				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
-				local chests = getAccessibleObjects({"chests"})
+				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
 				if #chests > 0 then
 					teleportToNearest(chests)
 				else
 					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects({"other"})
+					local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
 					if #items > 0 then
 						teleportToNearest(items)
 					end
 				end
 			elseif teleportingChests then
-				local chests = getAccessibleObjects({"chests"})
+				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
 				if #chests > 0 then
 					teleportToNearest(chests)
 				end
 			elseif teleportingItems then
-				local items = getAccessibleObjects({"other"})
+				local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
 				if #items > 0 then
 					teleportToNearest(items)
 				end
@@ -424,7 +438,8 @@ local storedObjects = {} -- таблица для хранения объект�
 spawn(function()
 	while true do
 		if promptAutoActivate then
-			activateAllNearbyPrompts({"chests", "other"})
+			activateAllNearbyPrompts(CHEST_NAMES)
+			activateAllNearbyPrompts(ITEM_NAMES)
 		end
 		task.wait(0.3)
 	end
