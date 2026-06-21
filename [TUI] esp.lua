@@ -23,8 +23,26 @@ local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
-local CHEST_NAMES = {"chests", "Dark Chest_p", "Light Chest_p"}
-local ITEM_NAMES = {"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"}
+local CHEST_NAMES = {
+	"chests", 
+	"Dark Chest_p", 
+	"Light Chest_p"
+}
+
+local ITEM_NAMES = {
+	"other", 
+	"Toll-096 Loot Bag", 
+	"Trollge King Loot Bag", 
+	"Saints Head_p", 
+	"Saints Torso_p", 
+	"Saints Leg_p", 
+	"Saints Arm_p", 
+	"Saints Finger_p", 
+	"Saints Eyes_p", 
+	"Space Heat_p", 
+	"Space Egg_p",
+	"Ectoplasm_p",
+}
 
 -- Все имена в одном множестве для быстрого поиска
 local ALL_NAMES = {}
@@ -435,23 +453,23 @@ local function ensureCombinedCycle()
 			if bothEnabled then
 				-- Приоритет: сначала сундуки, потом предметы
 				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
-				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
+				local chests = getAccessibleObjects(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
 				else
 					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+					local items = getAccessibleObjects(ITEM_NAMES)
 					if #items > 0 then
 						teleportToNearest(items)
 					end
 				end
 			elseif teleportingChests then
-				local chests = getAccessibleObjects({"chests", "Dark Chest_p", "Light Chest_p"})
+				local chests = getAccessibleObjects(CHEST_NAMES)
 				if #chests > 0 then
 					teleportToNearest(chests)
 				end
 			elseif teleportingItems then
-				local items = getAccessibleObjects({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
+				local items = getAccessibleObjects(ITEM_NAMES)
 				if #items > 0 then
 					teleportToNearest(items)
 				end
