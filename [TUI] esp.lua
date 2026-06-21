@@ -21,7 +21,7 @@ local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Создаем ScreenGui
@@ -180,7 +180,7 @@ local function updateChestCount()
 end
 
 local function updateItemCount()
-	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p",})
+	local items = getAllObjectsByNames({"other", "Toll-096 Loot Bag", "Trollge King Loot Bag", "Saints Head_p", "Saints Torso_p", "Saints Leg_p", "Saints Arm_p", "Saints Finger_p", "Saints Eyes_p", "Space Heat_p", "Space Egg_p"})
 	itemCountLabel.Text = "Предметов [" .. #items .. "]"
 end
 
