@@ -25,6 +25,7 @@ local MaxHeight = 210
 -- Полные списки имён для поиска
 local CHEST_NAMES = {
 	"chests", 
+	"Chest_p", 
 	"Dark Chest_p", 
 	"Light Chest_p"
 }
@@ -41,7 +42,10 @@ local ITEM_NAMES = {
 	"Saints Eyes_p", 
 	"Space Heat_p", 
 	"Space Egg_p",
+	"Meteorite_p", 
+	"Alien Tech_p",
 	"Ectoplasm_p",
+	"Ancient Fragment_p",
 }
 
 -- Все имена в одном множестве для быстрого поиска
