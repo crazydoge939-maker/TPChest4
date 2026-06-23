@@ -23,6 +23,8 @@ local ALLOWED_OBJECTS = {
 	["Purchase Dark Chest!"] = true,
 	["Purchase Light Chest!"] = true,
 	["Purchase Radioactive Cup!"] = true,
+	["Purchase Kings Arm!"] = true,
+	["Purchase Space Egg!"] = true,
 }
 
 -- ===================== UI =====================
