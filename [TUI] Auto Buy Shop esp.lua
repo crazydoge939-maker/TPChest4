@@ -17,6 +17,7 @@ local ALLOWED_OBJECTS = {
 	["Purchase Meat!"] = true,
 	["Purchase Orb!"] = true,
 	["Purchase Cursed Orb!"] = true,
+	["Purchase Holy Orb!"] = true,
 	["Purchase Shattered Chain!"] = true,
 	["Purchase Holy Chain!"] = true,
 	["Purchase Dark Chest!"] = true,
