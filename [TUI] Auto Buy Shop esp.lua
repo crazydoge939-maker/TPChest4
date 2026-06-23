@@ -15,6 +15,7 @@ local ALLOWED_OBJECTS = {
 	["Purchase Leather!"] = true,
 	["Purchase Rope!"] = true,
 	["Purchase Meat!"] = true,
+	["Purchase Coal!"] = true,
 	["Purchase Orb!"] = true,
 	["Purchase Cursed Orb!"] = true,
 	["Purchase Holy Orb!"] = true,
@@ -25,6 +26,8 @@ local ALLOWED_OBJECTS = {
 	["Purchase Radioactive Cup!"] = true,
 	["Purchase Kings Arm!"] = true,
 	["Purchase Space Egg!"] = true,
+	["Purchase Blood Tear!"] = true,
+	["Purchase Stormy Cloud!"] = true,
 }
 
 -- ===================== UI =====================
