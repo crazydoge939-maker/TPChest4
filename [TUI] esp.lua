@@ -25,7 +25,6 @@ local MaxHeight = 210
 -- Полные списки имён для поиска
 local CHEST_NAMES = {
 	"chests", 
-	"Chest_p", 
 	"Dark Chest_p", 
 	"Light Chest_p"
 }
