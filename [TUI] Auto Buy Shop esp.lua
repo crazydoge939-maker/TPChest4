@@ -56,10 +56,11 @@ local CATEGORIES = {
 	{
 		name = "DJ",
 		items = {
-			"DJ Offers Gold!",
-			"DJ Offers Holy Chain!",
-			"DJ Offers Beachball!",
-			"DJ Offers Light Chest!",
+			"DJ Troll Offers Gold!",
+			"DJ Troll Offers Holy Chain!",
+			"DJ Troll Offers Beachball!",
+			"DJ Troll Offers Kings Arm!",
+			"DJ Troll Offers Light Chest!",
 		},
 	},
 }
