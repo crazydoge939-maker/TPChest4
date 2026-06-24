@@ -42,15 +42,15 @@ local CATEGORIES = {
 	{
 		name = "Mysterious Seller",
 		items = {
-			"??? Offers Acid Cup!",
-			"??? Offers Charge!",
-			"??? Offers Shattered Chain!",
-			"??? Offers Ghoul's Tentacle!",
-			"??? Offers Saints Brain!",
-			"??? Offers Dark Chest!",
-			"??? Offers Paper!",
-			"??? Offers Warp Spiral!",
-			"??? Offers Unknown Eye!",
+			"??? Troll Offers Acid Cup!",
+			"??? Troll Offers Charge!",
+			"??? Troll Offers Shattered Chain!",
+			"??? Troll Offers Ghoul's Tentacle!",
+			"??? Troll Offers Saints Brain!",
+			"??? Troll Offers Dark Chest!",
+			"??? Troll Offers Paper!",
+			"??? Troll Offers Warp Spiral!",
+			"??? Troll Offers Unknown Eye!",
 		},
 	},
 	{
@@ -81,7 +81,7 @@ end
 
 -- Helper
 local function getDisplayName(objectText)
-	return objectText:gsub("Purchase ", ""):gsub("??? Offers ", ""):gsub("DJ Offers ", ""):gsub("!", "")
+	return objectText:gsub("Purchase ", ""):gsub("??? Troll Offers ", ""):gsub("DJ Troll Offers ", ""):gsub("!", "")
 end
 
 -- Current category
