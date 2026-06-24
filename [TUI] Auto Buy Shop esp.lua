@@ -27,6 +27,7 @@ local CATEGORIES = {
 			"Purchase Shattered Chain!",
 			"Purchase Holy Chain!",
 			"Purchase Ruler's Diary!",
+			"Purchase Light Chest!",
 			"Purchase Radioactive Cup!",
 			"Purchase Blood Cup!",
 			"Purchase Kings Arm!",
