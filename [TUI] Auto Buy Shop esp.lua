@@ -10,7 +10,7 @@ local mainRunning = false
 
 local CATEGORIES = {
 	{
-		name = "Black Market",
+		name = "Черный Рынок",
 		items = {
 			"Purchase Wood!",
 			"Purchase Stone!",
@@ -39,24 +39,23 @@ local CATEGORIES = {
 	{
 		name = "Mysterious Seller",
 		items = {
-			"Purchase Acid Cup!",
-			"Purchase Charge!",
-			"Purchase Shattered Chain!",
-			"Purchase Ghoul's Tentacle!",
-			"Purchase Saints Brain!",
-			"Purchase Dark Chest!",
-			"Purchase Paper!",
-			"Purchase Warp Spiral!",
-			"Purchase Unknown Eye!",
+			"Sell Acid Cup!",
+			"Sell Charge!",
+			"Sell Shattered Chain!",
+			"Sell Ghoul's Tentacle!",
+			"Sell Dark Chest!",
+			"Sell Paper!",
+			"Sell Warp Spiral!",
+			"Sell Unknown Eye!",
 		},
 	},
 	{
 		name = "DJ",
 		items = {
-			"Purchase Gold!",
-			"Purchase Holy Chain!",
-			"Purchase Beachball!",
-			"Purchase Light Chest!",
+			"Sell Gold!",
+			"Sell Holy Chain!",
+			"Sell Beachball!",
+			"Sell Light Chest!",
 		},
 	},
 }
@@ -77,7 +76,7 @@ end
 
 -- Helper
 local function getDisplayName(objectText)
-	return objectText:gsub("Purchase ", ""):gsub("!", "")
+	return objectText:gsub("Purchase ", ""):gsub("Sell ", ""):gsub("!", "")
 end
 
 -- Current category
@@ -183,7 +182,7 @@ hideBtnCorner.Parent = hideBtn
 local tabRow = Instance.new("Frame")
 tabRow.Name = "TabRow"
 tabRow.Size = UDim2.new(1, 0, 0.065, 0)
-tabRow.Position = UDim2.new(0, 0, 0.06, 0)
+tabRow.Position = UDim2.new(0, 0, 0.13, 0)
 tabRow.BackgroundTransparency = 1
 tabRow.Parent = frame
 
@@ -199,7 +198,7 @@ for i, category in CATEGORIES do
 	tabBtn.Name = "Tab_" .. i
 	tabBtn.Size = UDim2.new(0.32, 0, 1, 0)
 	tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-	tabBtn.Text = category.name .. " [OFF]"
+	tabBtn.Text = category.name
 	tabBtn.TextColor3 = Color3.fromRGB(160, 160, 200)
 	tabBtn.TextScaled = true
 	tabBtn.Font = Enum.Font.GothamBold
@@ -222,11 +221,53 @@ separator.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
 separator.BorderSizePixel = 0
 separator.Parent = frame
 
+-- Category toggle row (separate ON/OFF per category)
+local catToggleRow = Instance.new("Frame")
+catToggleRow.Name = "CatToggleRow"
+catToggleRow.Size = UDim2.new(1, 0, 0.065, 0)
+catToggleRow.BackgroundTransparency = 1
+catToggleRow.Parent = frame
+
+local catToggleLayout = Instance.new("UIListLayout")
+catToggleLayout.FillDirection = Enum.FillDirection.Horizontal
+catToggleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+catToggleLayout.Padding = UDim.new(0.008, 0)
+catToggleLayout.Parent = catToggleRow
+
+local catToggleButtons = {}
+for i, category in CATEGORIES do
+	local catBtn = Instance.new("TextButton")
+	catBtn.Name = "CatToggle_" .. i
+	catBtn.Size = UDim2.new(0.32, 0, 1, 0)
+	catBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+	catBtn.Text = "OFF"
+	catBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	catBtn.TextScaled = true
+	catBtn.Font = Enum.Font.GothamBold
+	catBtn.BorderSizePixel = 0
+	catBtn.LayoutOrder = i
+	catBtn.Parent = catToggleRow
+
+	local catBtnCorner = Instance.new("UICorner")
+	catBtnCorner.CornerRadius = UDim.new(0.1, 0)
+	catBtnCorner.Parent = catBtn
+
+	catToggleButtons[i] = catBtn
+end
+
+-- Separator 2
+local separator2 = Instance.new("Frame")
+separator2.Name = "Separator2"
+separator2.Size = UDim2.new(1, 0, 0.004, 0)
+separator2.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+separator2.BorderSizePixel = 0
+separator2.Parent = frame
+
 -- ScrollingFrame for item toggles
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Name = "ItemList"
-scrollFrame.Size = UDim2.new(1, 0, 0.84, 0)
-scrollFrame.Position = UDim2.new(0, 0, 0.14, 0)
+scrollFrame.Size = UDim2.new(1, 0, 0.775, 0)
+scrollFrame.Position = UDim2.new(0, 0, 0.21, 0)
 scrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 scrollFrame.BorderSizePixel = 0
 scrollFrame.ScrollBarThickness = 4
@@ -307,14 +348,14 @@ end
 -- ===================== UI LOGIC =====================
 
 local function updateCatToggleUI(catIdx)
-	local btn = tabButtons[catIdx]
+	local btn = catToggleButtons[catIdx]
 	if not btn then return end
-	local stateText = categoryEnabled[catIdx] and " [ON]" or " [OFF]"
-	btn.Text = CATEGORIES[catIdx].name .. stateText
 	if categoryEnabled[catIdx] then
-		btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		btn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		btn.Text = "ON"
 	else
-		btn.TextColor3 = Color3.fromRGB(160, 160, 200)
+		btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+		btn.Text = "OFF"
 	end
 end
 
@@ -334,13 +375,9 @@ local function updateTabButtons()
 	for i, tabBtn in tabButtons do
 		if i == currentCategory then
 			tabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+			tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 		else
 			tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-		end
-		-- Preserve ON/OFF text color
-		if categoryEnabled[i] then
-			tabBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-		else
 			tabBtn.TextColor3 = Color3.fromRGB(160, 160, 200)
 		end
 	end
@@ -354,6 +391,21 @@ local function switchCategory(catIdx)
 		end
 	end
 	updateTabButtons()
+end
+
+-- Connect tab buttons
+for i, tabBtn in tabButtons do
+	tabBtn.MouseButton1Click:Connect(function()
+		switchCategory(i)
+	end)
+end
+
+-- Connect item toggle buttons
+for objectText, btn in itemButtons do
+	btn.MouseButton1Click:Connect(function()
+		itemStates[objectText] = not itemStates[objectText]
+		updateItemButton(objectText)
+	end)
 end
 
 -- Hide/show panel
@@ -505,10 +557,9 @@ local function mainLoop()
 	end
 end
 
--- Connect tab buttons (switch view + toggle category)
-for i, tabBtn in tabButtons do
-	tabBtn.MouseButton1Click:Connect(function()
-		switchCategory(i)
+-- Connect category toggle buttons
+for i, catBtn in catToggleButtons do
+	catBtn.MouseButton1Click:Connect(function()
 		categoryEnabled[i] = not categoryEnabled[i]
 		updateCatToggleUI(i)
 		-- Start main loop if any category is ON
@@ -522,14 +573,6 @@ for i, tabBtn in tabButtons do
 		elseif not anyOn then
 			mainRunning = false
 		end
-	end)
-end
-
--- Connect item toggle buttons
-for objectText, btn in itemButtons do
-	btn.MouseButton1Click:Connect(function()
-		itemStates[objectText] = not itemStates[objectText]
-		updateItemButton(objectText)
 	end)
 end
 
