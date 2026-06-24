@@ -2,35 +2,85 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local isEnabled = false
-local running = false
+local masterEnabled = true
+local categoryEnabled = { false, false, false }
+local mainRunning = false
 
--- Allowed ObjectText values
-local ALLOWED_OBJECTS = {
-	["Purchase Wood!"] = true,
-	["Purchase Stone!"] = true,
-	["Purchase Rusty Metal!"] = true,
-	["Purchase Metal!"] = true,
-	["Purchase Line Paper!"] = true,
-	["Purchase Leather!"] = true,
-	["Purchase Rope!"] = true,
-	["Purchase Meat!"] = true,
-	["Purchase Coal!"] = true,
-	["Purchase Orb!"] = true,
-	["Purchase Cursed Orb!"] = true,
-	["Purchase Holy Orb!"] = true,
-	["Purchase Shattered Chain!"] = true,
-	["Purchase Holy Chain!"] = true,
-	["Purchase Ruler's Diary!"] = true,
-	["Purchase Dark Chest!"] = true,
-	["Purchase Light Chest!"] = true,
-	["Purchase Radioactive Cup!"] = true,
-	["Purchase Blood Cup!"] = true,
-	["Purchase Kings Arm!"] = true,
-	["Purchase Space Egg!"] = true,
-	["Purchase Blood Tear!"] = true,
-	["Purchase Stormy Cloud!"] = true,
+-- ===================== CATEGORIES =====================
+
+local CATEGORIES = {
+	{
+		name = "Черный Рынок",
+		items = {
+			"Purchase Wood!",
+			"Purchase Stone!",
+			"Purchase Rusty Metal!",
+			"Purchase Metal!",
+			"Purchase Line Paper!",
+			"Purchase Leather!",
+			"Purchase Rope!",
+			"Purchase Meat!",
+			"Purchase Coal!",
+			"Purchase Orb!",
+			"Purchase Cursed Orb!",
+			"Purchase Holy Orb!",
+			"Purchase Ruler's Diary!",
+			"Purchase Radioactive Cup!",
+			"Purchase Blood Cup!",
+			"Purchase Kings Arm!",
+			"Purchase Space Egg!",
+			"Purchase Blood Tear!",
+			"Purchase Saints Head!",
+			"Purchase Saints Torso!",
+			"Purchase Saints Leg!",
+			"Purchase Saints Arm!",
+		},
+	},
+	{
+		name = "Mysterious Seller",
+		items = {
+			"Purchase Acid Cup!",
+			"Purchase Charge!",
+			"Purchase Shattered Chain!",
+			"Purchase Ghoul's Tentacle!",
+			"Purchase Dark Chest!",
+			"Purchase Paper!",
+			"Purchase Warp Spiral!",
+			"Purchase Unknown Eye!",
+		},
+	},
+	{
+		name = "DJ",
+		items = {
+			"Purchase Gold!",
+			"Purchase Holy Chain!",
+			"Purchase Beachball!",
+			"Purchase Light Chest!",
+		},
+	},
 }
+
+-- Build flat list of all allowed objects
+local ALLOWED_OBJECTS = {}
+for _, category in CATEGORIES do
+	for _, item in category.items do
+		table.insert(ALLOWED_OBJECTS, item)
+	end
+end
+
+-- Track which items are allowed
+local itemStates = {}
+for _, name in ALLOWED_OBJECTS do
+	itemStates[name] = false
+end
+
+-- Helper
+local function getDisplayName(objectText)
+	return objectText:gsub("Purchase ", ""):gsub("!", "")
+end
+
+-- Current category
+local currentCategory = 1
 
 -- ===================== UI =====================
 
@@ -40,10 +90,36 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- Small open button (shown when panel is hidden)
+local openBtn = Instance.new("TextButton")
+openBtn.Name = "OpenButton"
+openBtn.Size = UDim2.new(0.2, 0, 0.05, 0)
+openBtn.Position = UDim2.new(0.5, 0, 0.05, 0)
+openBtn.AnchorPoint = Vector2.new(0.5, 0)
+openBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+openBtn.Text = "Auto Buy  [ + ]"
+openBtn.TextColor3 = Color3.fromRGB(220, 220, 255)
+openBtn.TextScaled = true
+openBtn.Font = Enum.Font.GothamBold
+openBtn.BorderSizePixel = 0
+openBtn.Visible = false
+openBtn.Parent = screenGui
+
+local openBtnCorner = Instance.new("UICorner")
+openBtnCorner.CornerRadius = UDim.new(0.03, 0)
+openBtnCorner.Parent = openBtn
+
+local openBtnStroke = Instance.new("UIStroke")
+openBtnStroke.Color = Color3.fromRGB(80, 80, 120)
+openBtnStroke.Thickness = 1.5
+openBtnStroke.Parent = openBtn
+
+-- Main panel
 local frame = Instance.new("Frame")
 frame.Name = "Panel"
-frame.Size = UDim2.new(0.1, 0, 0.1, 0)
-frame.Position = UDim2.new(0.5, 0, 0, 0)
+frame.Size = UDim2.new(0.2, 0, 0.42, 0)
+frame.Position = UDim2.new(0.5, 0, 0.05, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -51,7 +127,7 @@ frame.Draggable = true
 frame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.CornerRadius = UDim.new(0.03, 0)
 frameCorner.Parent = frame
 
 local frameStroke = Instance.new("UIStroke")
@@ -59,61 +135,237 @@ frameStroke.Color = Color3.fromRGB(80, 80, 120)
 frameStroke.Thickness = 1.5
 frameStroke.Parent = frame
 
+-- Layout padding
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0.015, 0)
+padding.PaddingBottom = UDim.new(0.01, 0)
+padding.PaddingLeft = UDim.new(0.02, 0)
+padding.PaddingRight = UDim.new(0.02, 0)
+padding.Parent = frame
+
+-- Title row with hide button
+local titleRow = Instance.new("Frame")
+titleRow.Name = "TitleRow"
+titleRow.Size = UDim2.new(1, 0, 0.055, 0)
+titleRow.BackgroundTransparency = 1
+titleRow.Parent = frame
+
 local title = Instance.new("TextLabel")
 title.Name = "Title"
-title.Size = UDim2.new(1, 0, 0.3, 0)
-title.Position = UDim2.new(0, 0, 0, 0)
+title.Size = UDim2.new(0.5, 0, 1, 0)
+title.Position = UDim2.new(0.25, 0, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "⚡ Auto Buy Shop"
+title.Text = "Auto Buy"
 title.TextColor3 = Color3.fromRGB(220, 220, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
-title.Parent = frame
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = titleRow
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "Status"
-statusLabel.Size = UDim2.new(0.5, 0, 0.2, 0)
-statusLabel.Position = UDim2.new(0.025, 0, 0.4, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: OFF"
-statusLabel.TextColor3 = Color3.fromRGB(180, 80, 80)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Parent = frame
+local hideBtn = Instance.new("TextButton")
+hideBtn.Name = "HideButton"
+hideBtn.Size = UDim2.new(0.14, 0, 0.95, 0)
+hideBtn.Position = UDim2.new(0.85, 0, 0, 0)
+hideBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+hideBtn.Text = "X"
+hideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+hideBtn.TextScaled = true
+hideBtn.Font = Enum.Font.GothamBold
+hideBtn.BorderSizePixel = 0
+hideBtn.Parent = titleRow
 
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(1, 0, 0.3, 0)
-toggleButton.Position = UDim2.new(0, 0, 0.7, 0)
-toggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-toggleButton.Text = "OFF"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.BorderSizePixel = 0
-toggleButton.AutoButtonColor = true
-toggleButton.Parent = frame
+local hideBtnCorner = Instance.new("UICorner")
+hideBtnCorner.CornerRadius = UDim.new(0.15, 0)
+hideBtnCorner.Parent = hideBtn
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = toggleButton
+-- Category tabs
+local tabRow = Instance.new("Frame")
+tabRow.Name = "TabRow"
+tabRow.Size = UDim2.new(1, 0, 0.065, 0)
+tabRow.Position = UDim2.new(0, 0, 0.06, 0)
+tabRow.BackgroundTransparency = 1
+tabRow.Parent = frame
 
--- ===================== TOGGLE LOGIC =====================
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabLayout.Padding = UDim.new(0.008, 0)
+tabLayout.Parent = tabRow
 
-local function updateUI()
-	if isEnabled then
-		toggleButton.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
-		toggleButton.Text = "ON"
-		statusLabel.Text = "Status: ON"
-		statusLabel.TextColor3 = Color3.fromRGB(80, 200, 100)
-	else
-		toggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-		toggleButton.Text = "OFF"
-		statusLabel.Text = "Status: OFF"
-		statusLabel.TextColor3 = Color3.fromRGB(180, 80, 80)
+local tabButtons = {}
+for i, category in CATEGORIES do
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Name = "Tab_" .. i
+	tabBtn.Size = UDim2.new(0.32, 0, 1, 0)
+	tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+	tabBtn.Text = category.name .. " [OFF]"
+	tabBtn.TextColor3 = Color3.fromRGB(160, 160, 200)
+	tabBtn.TextScaled = true
+	tabBtn.Font = Enum.Font.GothamBold
+	tabBtn.BorderSizePixel = 0
+	tabBtn.LayoutOrder = i
+	tabBtn.Parent = tabRow
+
+	local tabCorner = Instance.new("UICorner")
+	tabCorner.CornerRadius = UDim.new(0.1, 0)
+	tabCorner.Parent = tabBtn
+
+	tabButtons[i] = tabBtn
+end
+
+-- Separator
+local separator = Instance.new("Frame")
+separator.Name = "Separator"
+separator.Size = UDim2.new(1, 0, 0.004, 0)
+separator.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+separator.BorderSizePixel = 0
+separator.Parent = frame
+
+-- ScrollingFrame for item toggles
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ItemList"
+scrollFrame.Size = UDim2.new(1, 0, 0.84, 0)
+scrollFrame.Position = UDim2.new(0, 0, 0.14, 0)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 150)
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrollFrame.Parent = frame
+
+local scrollCorner = Instance.new("UICorner")
+scrollCorner.CornerRadius = UDim.new(0.02, 0)
+scrollCorner.Parent = scrollFrame
+
+local scrollPadding = Instance.new("UIPadding")
+scrollPadding.PaddingTop = UDim.new(0.01, 0)
+scrollPadding.PaddingBottom = UDim.new(0.01, 0)
+scrollPadding.PaddingLeft = UDim.new(0.01, 0)
+scrollPadding.PaddingRight = UDim.new(0.01, 0)
+scrollPadding.Parent = scrollFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0.008, 0)
+listLayout.Parent = scrollFrame
+
+-- Create item toggle rows for all categories
+local itemButtons = {}
+local itemRows = {}
+
+for catIdx, category in CATEGORIES do
+	itemRows[catIdx] = {}
+	for i, objectText in category.items do
+		local row = Instance.new("Frame")
+		row.Name = getDisplayName(objectText)
+		row.Size = UDim2.new(1, 0, 0.08, 0)
+		row.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+		row.BorderSizePixel = 0
+		row.LayoutOrder = i
+		row.Visible = (catIdx == currentCategory)
+		row.Parent = scrollFrame
+
+		local rowCorner = Instance.new("UICorner")
+		rowCorner.CornerRadius = UDim.new(0.02, 0)
+		rowCorner.Parent = row
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Name = "NameLabel"
+		nameLabel.Size = UDim2.new(0.6, 0, 1, 0)
+		nameLabel.Position = UDim2.new(0.02, 0, 0, 0)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Text = getDisplayName(objectText)
+		nameLabel.TextColor3 = Color3.fromRGB(200, 200, 230)
+		nameLabel.TextScaled = true
+		nameLabel.Font = Enum.Font.Gotham
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.Parent = row
+
+		local itemBtn = Instance.new("TextButton")
+		itemBtn.Name = "ItemToggle"
+		itemBtn.Size = UDim2.new(0.3, 0, 0.8, 0)
+		itemBtn.Position = UDim2.new(0.67, 0, 0.1, 0)
+		itemBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		itemBtn.Text = "✓"
+		itemBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		itemBtn.TextScaled = true
+		itemBtn.Font = Enum.Font.GothamBold
+		itemBtn.BorderSizePixel = 0
+		itemBtn.AutoButtonColor = true
+		itemBtn.Parent = row
+
+		local itemBtnCorner = Instance.new("UICorner")
+		itemBtnCorner.CornerRadius = UDim.new(0.15, 0)
+		itemBtnCorner.Parent = itemBtn
+
+		itemButtons[objectText] = itemBtn
+		itemRows[catIdx][objectText] = row
 	end
 end
+
+-- ===================== UI LOGIC =====================
+
+local function updateCatToggleUI(catIdx)
+	local btn = tabButtons[catIdx]
+	if not btn then return end
+	local stateText = categoryEnabled[catIdx] and " [ON]" or " [OFF]"
+	btn.Text = CATEGORIES[catIdx].name .. stateText
+	if categoryEnabled[catIdx] then
+		btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else
+		btn.TextColor3 = Color3.fromRGB(160, 160, 200)
+	end
+end
+
+local function updateItemButton(objectText)
+	local btn = itemButtons[objectText]
+	if not btn then return end
+	if itemStates[objectText] then
+		btn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		btn.Text = "✓"
+	else
+		btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+		btn.Text = "X"
+	end
+end
+
+local function updateTabButtons()
+	for i, tabBtn in tabButtons do
+		if i == currentCategory then
+			tabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+		else
+			tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+		end
+		-- Preserve ON/OFF text color
+		if categoryEnabled[i] then
+			tabBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		else
+			tabBtn.TextColor3 = Color3.fromRGB(160, 160, 200)
+		end
+	end
+end
+
+local function switchCategory(catIdx)
+	currentCategory = catIdx
+	for catI, rows in itemRows do
+		for objectText, row in rows do
+			row.Visible = (catI == currentCategory)
+		end
+	end
+	updateTabButtons()
+end
+
+-- Hide/show panel
+local panelVisible = true
+
+local function togglePanel()
+	panelVisible = not panelVisible
+	frame.Visible = panelVisible
+	openBtn.Visible = not panelVisible
+end
+
+hideBtn.MouseButton1Click:Connect(togglePanel)
+openBtn.MouseButton1Click:Connect(togglePanel)
 
 -- ===================== TELEPORT & PROMPT LOGIC =====================
 
@@ -131,7 +383,7 @@ end
 local function isPromptAllowed(prompt)
 	if not prompt then return false end
 	local objectText = prompt.ObjectText
-	if objectText and ALLOWED_OBJECTS[objectText] then
+	if objectText and itemStates[objectText] then
 		return true
 	end
 	return false
@@ -152,8 +404,8 @@ local function waitForPrompt(model, maxTime)
 end
 
 local function teleportAndActivate(model)
-	if not isEnabled then return end
-	if not model:IsA("Model") or model.Name ~= "Model" then return end
+	if not masterEnabled then return end
+	if not model:IsA("Model") then return end
 	if not model or not model.Parent then return end
 
 	local character = player.Character
@@ -176,7 +428,7 @@ local function teleportAndActivate(model)
 	task.wait(0.5)
 
 	-- Activate the prompt
-	if prompt and prompt.Enabled and prompt.Parent and isEnabled then
+	if prompt and prompt.Enabled and prompt.Parent and masterEnabled then
 		prompt.HoldDuration = 0
 		task.wait(0.1)
 		prompt:InputHoldBegin()
@@ -185,19 +437,65 @@ local function teleportAndActivate(model)
 	end
 end
 
--- ===================== MAIN LOOP =====================
+-- ===================== MAIN LOOP WITH PRIORITY =====================
+-- Priority: 1) Черный Рынок  2) Mysterious Seller  3) DJ
+-- If a higher-priority category has an item to buy, go there first
 
 local function mainLoop()
-	while running do
-		if isEnabled then
-			-- Search for Model in entire Workspace
-			for _, obj in Workspace:GetDescendants() do
-				if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
-					-- Check if prompt has allowed ObjectText
-					local prompt = findProximityPrompt(obj)
-					if isPromptAllowed(prompt) then
-						teleportAndActivate(obj)
-						break -- Process one at a time, then loop again
+	while mainRunning do
+		if masterEnabled then
+			local acted = false
+
+			-- Priority 1: Черный Рынок
+			if categoryEnabled[1] and not acted then
+				for _, obj in Workspace:GetDescendants() do
+					if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
+						local prompt = findProximityPrompt(obj)
+						if isPromptAllowed(prompt) then
+							teleportAndActivate(obj)
+							acted = true
+							break
+						end
+					end
+				end
+			end
+
+			-- Priority 2: Mysterious Seller
+			if categoryEnabled[2] and not acted then
+				local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
+				if npcsGuilds then
+					local mysteriousSeller = npcsGuilds:FindFirstChild("Mysterious Seller")
+					if mysteriousSeller then
+						for _, obj in mysteriousSeller:GetDescendants() do
+							if obj:IsA("Model") and obj.Parent then
+								local prompt = findProximityPrompt(obj)
+								if isPromptAllowed(prompt) then
+									teleportAndActivate(obj)
+									acted = true
+									break
+								end
+							end
+						end
+					end
+				end
+			end
+
+			-- Priority 3: DJ
+			if categoryEnabled[3] and not acted then
+				local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
+				if npcsGuilds then
+					local dj = npcsGuilds:FindFirstChild("DJ")
+					if dj then
+						for _, obj in dj:GetDescendants() do
+							if obj:IsA("Model") and obj.Parent then
+								local prompt = findProximityPrompt(obj)
+								if isPromptAllowed(prompt) then
+									teleportAndActivate(obj)
+									acted = true
+									break
+								end
+							end
+						end
 					end
 				end
 			end
@@ -206,19 +504,40 @@ local function mainLoop()
 	end
 end
 
--- ===================== BUTTON HANDLER =====================
+-- Connect tab buttons (switch view + toggle category)
+for i, tabBtn in tabButtons do
+	tabBtn.MouseButton1Click:Connect(function()
+		switchCategory(i)
+		categoryEnabled[i] = not categoryEnabled[i]
+		updateCatToggleUI(i)
+		-- Start main loop if any category is ON
+		local anyOn = false
+		for c = 1, #CATEGORIES do
+			if categoryEnabled[c] then anyOn = true break end
+		end
+		if anyOn and not mainRunning then
+			mainRunning = true
+			task.spawn(mainLoop)
+		elseif not anyOn then
+			mainRunning = false
+		end
+	end)
+end
 
-toggleButton.MouseButton1Click:Connect(function()
-	isEnabled = not isEnabled
-	updateUI()
+-- Connect item toggle buttons
+for objectText, btn in itemButtons do
+	btn.MouseButton1Click:Connect(function()
+		itemStates[objectText] = not itemStates[objectText]
+		updateItemButton(objectText)
+	end)
+end
 
-	if isEnabled then
-		running = true
-		task.spawn(mainLoop)
-	else
-		running = false
-	end
-end)
+-- ===================== INITIALIZE =====================
 
--- Initialize UI state
-updateUI()
+updateTabButtons()
+for i = 1, #CATEGORIES do
+	updateCatToggleUI(i)
+end
+for objectText, _ in itemButtons do
+	updateItemButton(objectText)
+end
