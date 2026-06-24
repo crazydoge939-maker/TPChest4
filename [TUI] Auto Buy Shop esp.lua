@@ -10,7 +10,7 @@ local mainRunning = false
 
 local CATEGORIES = {
 	{
-		name = "Черный Рынок",
+		name = "Black Market",
 		items = {
 			"Purchase Wood!",
 			"Purchase Stone!",
@@ -39,23 +39,23 @@ local CATEGORIES = {
 	{
 		name = "Mysterious Seller",
 		items = {
-			"Sell Acid Cup!",
-			"Sell Charge!",
-			"Sell Shattered Chain!",
-			"Sell Ghoul's Tentacle!",
-			"Sell Dark Chest!",
-			"Sell Paper!",
-			"Sell Warp Spiral!",
-			"Sell Unknown Eye!",
+			"??? Offers Acid Cup!",
+			"??? Offers Charge!",
+			"??? Offers Shattered Chain!",
+			"??? Offers Ghoul's Tentacle!",
+			"??? Offers Dark Chest!",
+			"??? Offers Paper!",
+			"??? Offers Warp Spiral!",
+			"??? Offers Unknown Eye!",
 		},
 	},
 	{
 		name = "DJ",
 		items = {
-			"Sell Gold!",
-			"Sell Holy Chain!",
-			"Sell Beachball!",
-			"Sell Light Chest!",
+			"DJ Offers Gold!",
+			"DJ Offers Holy Chain!",
+			"DJ Offers Beachball!",
+			"DJ Offers Light Chest!",
 		},
 	},
 }
@@ -76,7 +76,7 @@ end
 
 -- Helper
 local function getDisplayName(objectText)
-	return objectText:gsub("Purchase ", ""):gsub("Sell ", ""):gsub("!", "")
+	return objectText:gsub("Purchase ", ""):gsub("??? Offers ", ""):gsub("DJ Offers ", ""):gsub("!", "")
 end
 
 -- Current category
@@ -113,6 +113,45 @@ local openBtnStroke = Instance.new("UIStroke")
 openBtnStroke.Color = Color3.fromRGB(80, 80, 120)
 openBtnStroke.Thickness = 1.5
 openBtnStroke.Parent = openBtn
+
+-- Make openBtn draggable
+local UserInputService = game:GetService("UserInputService")
+local openDragInput
+local openDragStart
+local openStartPos
+local openIsDragging = false
+
+openBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		openDragStart = input.Position
+		openStartPos = openBtn.Position
+		openIsDragging = false
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				openDragStart = nil
+			end
+		end)
+	end
+end)
+
+openBtn.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		openDragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == openDragInput and openDragStart then
+		local delta = input.Position - openDragStart
+		if delta.Magnitude > 5 then
+			openIsDragging = true
+		end
+		openBtn.Position = UDim2.new(
+			openStartPos.X.Scale, openStartPos.X.Offset + delta.X,
+			openStartPos.Y.Scale, openStartPos.Y.Offset + delta.Y
+		)
+	end
+end)
 
 -- Main panel
 local frame = Instance.new("Frame")
@@ -182,7 +221,7 @@ hideBtnCorner.Parent = hideBtn
 local tabRow = Instance.new("Frame")
 tabRow.Name = "TabRow"
 tabRow.Size = UDim2.new(1, 0, 0.065, 0)
-tabRow.Position = UDim2.new(0, 0, 0.13, 0)
+tabRow.Position = UDim2.new(0, 0, 0.06, 0)
 tabRow.BackgroundTransparency = 1
 tabRow.Parent = frame
 
@@ -225,6 +264,7 @@ separator.Parent = frame
 local catToggleRow = Instance.new("Frame")
 catToggleRow.Name = "CatToggleRow"
 catToggleRow.Size = UDim2.new(1, 0, 0.065, 0)
+catToggleRow.Position = UDim2.new(0, 0, 0.135, 0)
 catToggleRow.BackgroundTransparency = 1
 catToggleRow.Parent = frame
 
@@ -418,7 +458,11 @@ local function togglePanel()
 end
 
 hideBtn.MouseButton1Click:Connect(togglePanel)
-openBtn.MouseButton1Click:Connect(togglePanel)
+openBtn.MouseButton1Click:Connect(function()
+	if not openIsDragging then
+		togglePanel()
+	end
+end)
 
 -- ===================== TELEPORT & PROMPT LOGIC =====================
 
