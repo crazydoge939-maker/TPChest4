@@ -10,7 +10,7 @@ local mainRunning = false
 
 local CATEGORIES = {
 	{
-		name = "Черный Рынок",
+		name = "Black Market",
 		items = {
 			"Purchase Wood!",
 			"Purchase Stone!",
@@ -43,6 +43,7 @@ local CATEGORIES = {
 			"Purchase Charge!",
 			"Purchase Shattered Chain!",
 			"Purchase Ghoul's Tentacle!",
+			"Purchase Saints Brain!",
 			"Purchase Dark Chest!",
 			"Purchase Paper!",
 			"Purchase Warp Spiral!",
