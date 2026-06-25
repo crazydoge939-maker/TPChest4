@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
@@ -473,8 +474,7 @@ end)
 
 -- ===================== TELEPORT & PROMPT LOGIC =====================
 
-local function findProximityPrompt(model)
-	-- Search inside the model
+local function findProximityPromptInModel(model)
 	local prompt = model:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then return prompt end
 	for _, desc in model:GetDescendants() do
@@ -482,13 +482,19 @@ local function findProximityPrompt(model)
 			return desc
 		end
 	end
+	return nil
+end
+
+local function findProximityPromptExpanded(model)
+	local prompt = findProximityPromptInModel(model)
+	if prompt then return prompt end
 
 	-- Search in parent (NPC model)
 	local parent = model.Parent
 	if parent then
 		prompt = parent:FindFirstChildOfClass("ProximityPrompt")
 		if prompt then return prompt end
-		for _, desc in parent:GetDescendants() do
+		for _, desc in parent:GetChildren() do
 			if desc:IsA("ProximityPrompt") then
 				return desc
 			end
@@ -498,32 +504,29 @@ local function findProximityPrompt(model)
 	return nil
 end
 
-local function findNearbyPrompt(position, maxDistance)
-	local closestPrompt = nil
-	local closestDist = maxDistance
+-- Cache NPC folder references
+local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
+local mysteriousSellerFolder = npcsGuilds and npcsGuilds:FindFirstChild("Mysterious Seller") or nil
+local djFolder = npcsGuilds and npcsGuilds:FindFirstChild("DJ") or nil
 
-	for _, desc in Workspace:GetDescendants() do
-		if desc:IsA("ProximityPrompt") and desc.Enabled then
-			local anchor = desc.Parent
-			if anchor then
-				local worldPos
-				if anchor:IsA("BasePart") then
-					worldPos = anchor.Position
-				elseif anchor:IsA("Model") and anchor.PrimaryPart then
-					worldPos = anchor.PrimaryPart.Position
-				end
-				if worldPos then
-					local dist = (worldPos - position).Magnitude
-					if dist < closestDist then
-						closestDist = dist
-						closestPrompt = desc
-					end
-				end
-			end
+-- Cache for Black Market models (refreshed periodically)
+local blackMarketCache = {}
+local blackMarketCacheTime = 0
+local BLACK_MARKET_CACHE_TTL = 5 -- refresh every 5 seconds
+
+local function getBlackMarketModels()
+	local now = tick()
+	if now - blackMarketCacheTime < BLACK_MARKET_CACHE_TTL then
+		return blackMarketCache
+	end
+	blackMarketCache = {}
+	for _, obj in Workspace:GetDescendants() do
+		if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
+			table.insert(blackMarketCache, obj)
 		end
 	end
-
-	return closestPrompt
+	blackMarketCacheTime = now
+	return blackMarketCache
 end
 
 local function isPromptAllowed(prompt)
@@ -545,7 +548,7 @@ local function isCharacterAlive()
 	return true
 end
 
-local function teleportAndActivate(model)
+local function teleportAndActivate(model, expandedSearch)
 	if not masterEnabled then return end
 	if not model:IsA("Model") then return end
 	if not model or not model.Parent then return end
@@ -559,33 +562,28 @@ local function teleportAndActivate(model)
 	local teleportPos = modelPivot.Position + Vector3.new(0, 3, 0)
 	hrp.CFrame = CFrame.new(teleportPos)
 
-	-- Wait for any ProximityPrompt (up to 6 seconds)
+	-- Wait for any ProximityPrompt (up to 4 seconds)
 	local prompt = nil
 	local elapsed = 0
-	while elapsed < 6 do
+	while elapsed < 4 do
 		if not model or not model.Parent then return end
 		if not isCharacterAlive() then return end
-		prompt = findProximityPrompt(model)
+		if expandedSearch then
+			prompt = findProximityPromptExpanded(model)
+		else
+			prompt = findProximityPromptInModel(model)
+		end
 		if prompt and prompt.Enabled then break end
 		prompt = nil
-		task.wait(0.3)
-		elapsed += 0.3
-	end
-
-	-- Fallback: search for any nearby ProximityPrompt
-	if not prompt then
-		local hrp2 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if hrp2 then
-			prompt = findNearbyPrompt(hrp2.Position, 20)
-		end
+		task.wait(0.5)
+		elapsed += 0.5
 	end
 
 	if not prompt then return end
-	if not model or not model.Parent then return end
 	if not isCharacterAlive() then return end
 
 	-- Wait for physics and prompt to be ready
-	task.wait(0.5)
+	task.wait(0.3)
 
 	if not isCharacterAlive() then return end
 
@@ -611,13 +609,14 @@ local function mainLoop()
 			local ok, err = pcall(function()
 				local acted = false
 
-				-- Priority 1: Черный Рынок
+				-- Priority 1: Черный Рынок (uses cached models)
 				if categoryEnabled[1] and not acted then
-					for _, obj in Workspace:GetDescendants() do
-						if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
-							local prompt = findProximityPrompt(obj)
+					local models = getBlackMarketModels()
+					for _, obj in models do
+						if obj.Parent then
+							local prompt = findProximityPromptInModel(obj)
 							if isPromptAllowed(prompt) then
-								teleportAndActivate(obj)
+								teleportAndActivate(obj, false)
 								acted = true
 								break
 							end
@@ -625,36 +624,24 @@ local function mainLoop()
 					end
 				end
 
-				-- Priority 2: Mysterious Seller
-				if categoryEnabled[2] and not acted then
-					local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
-					if npcsGuilds then
-						local mysteriousSeller = npcsGuilds:FindFirstChild("Mysterious Seller")
-						if mysteriousSeller then
-							for _, obj in mysteriousSeller:GetDescendants() do
-								if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
-									teleportAndActivate(obj)
-									acted = true
-									break
-								end
-							end
+				-- Priority 2: Mysterious Seller (uses cached folder, GetChildren)
+				if categoryEnabled[2] and not acted and mysteriousSellerFolder and mysteriousSellerFolder.Parent then
+					for _, obj in mysteriousSellerFolder:GetChildren() do
+						if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
+							teleportAndActivate(obj, true)
+							acted = true
+							break
 						end
 					end
 				end
 
-				-- Priority 3: DJ
-				if categoryEnabled[3] and not acted then
-					local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
-					if npcsGuilds then
-						local dj = npcsGuilds:FindFirstChild("DJ")
-						if dj then
-							for _, obj in dj:GetDescendants() do
-								if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
-									teleportAndActivate(obj)
-									acted = true
-									break
-								end
-							end
+				-- Priority 3: DJ (uses cached folder, GetChildren)
+				if categoryEnabled[3] and not acted and djFolder and djFolder.Parent then
+					for _, obj in djFolder:GetChildren() do
+						if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
+							teleportAndActivate(obj, true)
+							acted = true
+							break
 						end
 					end
 				end
@@ -663,7 +650,7 @@ local function mainLoop()
 				warn("[AutoBuy] Error in main loop: " .. tostring(err))
 			end
 		end
-		task.wait(0.5)
+		task.wait(1.5)
 	end
 end
 
