@@ -28,13 +28,14 @@ local CATEGORIES = {
 			"Purchase Holy Chain!",
 			"Purchase Ruler's Diary!",
 			"Purchase Light Chest!",
-			"Purchase Dark Chest!!",
+			"Purchase Dark Chest!",
 			"Purchase Radioactive Cup!",
 			"Purchase Blood Cup!",
 			"Purchase Kings Arm!",
 			"Purchase Space Egg!",
 			"Purchase Blood Tear!",
 			"Purchase Saints Head!",
+			"Purchase Saints Brain!",
 			"Purchase Saints Torso!",
 			"Purchase Saints Leg!",
 			"Purchase Saints Arm!",
@@ -43,25 +44,25 @@ local CATEGORIES = {
 	{
 		name = "Mysterious Seller",
 		items = {
-			"??? Troll Offers Acid Cup!",
-			"??? Troll Offers Charge!",
-			"??? Troll Offers Shattered Chain!",
-			"??? Troll Offers Ghoul's Tentacle!",
-			"??? Troll Offers Saints Brain!",
-			"??? Troll Offers Dark Chest!",
-			"??? Troll Offers Paper!",
-			"??? Troll Offers Warp Spiral!",
-			"??? Troll Offers Unknown Eye!",
+			"Acid Cup",
+			"Charge",
+			"Shattered Chain",
+			"Ghoul's Tentacle",
+			"Saints Brain",
+			"Dark Chest",
+			"Paper",
+			"Warp Spiral",
+			"Unknown Eye",
 		},
 	},
 	{
 		name = "DJ",
 		items = {
-			"DJ Troll Offers Gold!",
-			"DJ Troll Offers Holy Chain!",
-			"DJ Troll Offers Beachball!",
-			"DJ Troll Offers Kings Arm!",
-			"DJ Troll Offers Light Chest!",
+			"Gold",
+			"Holy Chain",
+			"Beachball",
+			"Kings Arm",
+			"Light Chest",
 		},
 	},
 }
@@ -82,7 +83,7 @@ end
 
 -- Helper
 local function getDisplayName(objectText)
-	return objectText:gsub("Purchase ", ""):gsub("??? Troll Offers ", ""):gsub("DJ Troll Offers ", ""):gsub("!", "")
+	return objectText:gsub("Purchase ", ""):gsub("!", "")
 end
 
 -- Current category
@@ -492,50 +493,60 @@ local function isPromptAllowed(prompt)
 	return false
 end
 
-local function waitForPrompt(model, maxTime)
-	local elapsed = 0
-	while elapsed < maxTime do
-		if not model or not model.Parent then return nil end
-		local prompt = findProximityPrompt(model)
-		if prompt and prompt.Enabled and isPromptAllowed(prompt) then
-			return prompt
-		end
-		task.wait(0.3)
-		elapsed += 0.3
-	end
-	return nil
+local function isCharacterAlive()
+	local character = player.Character
+	if not character then return false end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return false end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp or not hrp.Parent then return false end
+	return true
 end
 
 local function teleportAndActivate(model)
 	if not masterEnabled then return end
 	if not model:IsA("Model") then return end
 	if not model or not model.Parent then return end
+	if not isCharacterAlive() then return end
 
 	local character = player.Character
-	if not character then return end
-
 	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
 
 	-- Teleport to model
 	local modelPivot = model:GetPivot()
 	local teleportPos = modelPivot.Position + Vector3.new(0, 3, 0)
 	hrp.CFrame = CFrame.new(teleportPos)
 
-	-- Wait for allowed ProximityPrompt (up to 6 seconds)
-	local prompt = waitForPrompt(model, 6)
+	-- Wait for any ProximityPrompt (up to 6 seconds)
+	local prompt = nil
+	local elapsed = 0
+	while elapsed < 6 do
+		if not model or not model.Parent then return end
+		if not isCharacterAlive() then return end
+		prompt = findProximityPrompt(model)
+		if prompt and prompt.Enabled then break end
+		prompt = nil
+		task.wait(0.3)
+		elapsed += 0.3
+	end
+
 	if not prompt then return end
 	if not model or not model.Parent then return end
+	if not isCharacterAlive() then return end
 
 	-- Wait for physics and prompt to be ready
 	task.wait(0.5)
+
+	if not isCharacterAlive() then return end
 
 	-- Activate the prompt
 	if prompt and prompt.Enabled and prompt.Parent and masterEnabled then
 		prompt.HoldDuration = 0
 		task.wait(0.1)
+		if not isCharacterAlive() then return end
 		prompt:InputHoldBegin()
 		task.wait(0.15)
+		if not isCharacterAlive() then return end
 		prompt:InputHoldEnd()
 	end
 end
@@ -546,33 +557,32 @@ end
 
 local function mainLoop()
 	while mainRunning do
-		if masterEnabled then
-			local acted = false
+		if masterEnabled and isCharacterAlive() then
+			local ok, err = pcall(function()
+				local acted = false
 
-			-- Priority 1: Черный Рынок
-			if categoryEnabled[1] and not acted then
-				for _, obj in Workspace:GetDescendants() do
-					if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
-						local prompt = findProximityPrompt(obj)
-						if isPromptAllowed(prompt) then
-							teleportAndActivate(obj)
-							acted = true
-							break
+				-- Priority 1: Черный Рынок
+				if categoryEnabled[1] and not acted then
+					for _, obj in Workspace:GetDescendants() do
+						if obj:IsA("Model") and obj.Name == "Model" and obj.Parent then
+							local prompt = findProximityPrompt(obj)
+							if isPromptAllowed(prompt) then
+								teleportAndActivate(obj)
+								acted = true
+								break
+							end
 						end
 					end
 				end
-			end
 
-			-- Priority 2: Mysterious Seller
-			if categoryEnabled[2] and not acted then
-				local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
-				if npcsGuilds then
-					local mysteriousSeller = npcsGuilds:FindFirstChild("Mysterious Seller")
-					if mysteriousSeller then
-						for _, obj in mysteriousSeller:GetDescendants() do
-							if obj:IsA("Model") and obj.Parent then
-								local prompt = findProximityPrompt(obj)
-								if isPromptAllowed(prompt) then
+				-- Priority 2: Mysterious Seller
+				if categoryEnabled[2] and not acted then
+					local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
+					if npcsGuilds then
+						local mysteriousSeller = npcsGuilds:FindFirstChild("Mysterious Seller")
+						if mysteriousSeller then
+							for _, obj in mysteriousSeller:GetDescendants() do
+								if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
 									teleportAndActivate(obj)
 									acted = true
 									break
@@ -581,18 +591,15 @@ local function mainLoop()
 						end
 					end
 				end
-			end
 
-			-- Priority 3: DJ
-			if categoryEnabled[3] and not acted then
-				local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
-				if npcsGuilds then
-					local dj = npcsGuilds:FindFirstChild("DJ")
-					if dj then
-						for _, obj in dj:GetDescendants() do
-							if obj:IsA("Model") and obj.Parent then
-								local prompt = findProximityPrompt(obj)
-								if isPromptAllowed(prompt) then
+				-- Priority 3: DJ
+				if categoryEnabled[3] and not acted then
+					local npcsGuilds = Workspace:FindFirstChild("npcs_guilds")
+					if npcsGuilds then
+						local dj = npcsGuilds:FindFirstChild("DJ")
+						if dj then
+							for _, obj in dj:GetDescendants() do
+								if obj:IsA("Model") and obj.Parent and itemStates[obj.Name] then
 									teleportAndActivate(obj)
 									acted = true
 									break
@@ -601,6 +608,9 @@ local function mainLoop()
 						end
 					end
 				end
+			end)
+			if not ok then
+				warn("[AutoBuy] Error in main loop: " .. tostring(err))
 			end
 		end
 		task.wait(0.5)
