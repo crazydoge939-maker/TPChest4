@@ -503,12 +503,6 @@ local djPresent = djFolder ~= nil
 -- Event-based cache for Black Market models (no periodic scanning)
 local blackMarketModels = {}
 
-local function addIfBlackMarketModel(obj)
-	if obj:IsA("Model") and obj.Name == "Model" then
-		table.insert(blackMarketModels, obj)
-	end
-end
-
 local function removeIfBlackMarketModel(obj)
 	if obj:IsA("Model") and obj.Name == "Model" then
 		for i, m in blackMarketModels do
@@ -520,6 +514,17 @@ local function removeIfBlackMarketModel(obj)
 	end
 end
 
+local function addIfBlackMarketModel(obj)
+	if obj:IsA("Model") and obj.Name == "Model" then
+		table.insert(blackMarketModels, obj)
+		obj.AncestryChanged:Connect(function()
+			if not obj.Parent then
+				removeIfBlackMarketModel(obj)
+			end
+		end)
+	end
+end
+
 -- Initial scan (GetChildren only — models are direct children of Workspace)
 for _, obj in Workspace:GetChildren() do
 	addIfBlackMarketModel(obj)
@@ -527,72 +532,39 @@ end
 
 -- Keep cache in sync via events (no more periodic rescans)
 Workspace.ChildAdded:Connect(addIfBlackMarketModel)
-Workspace.ChildRemoving:Connect(removeIfBlackMarketModel)
 
--- Workspace ProximityPrompt cache (active only when Mysterious Seller or DJ NPC is present)
-local workspacePromptCache = {}
-local npcScanActive = false
-
-local function addPromptToCache(obj)
-	if obj:IsA("ProximityPrompt") then
-		table.insert(workspacePromptCache, obj)
-	end
-end
-
-local function removePromptFromCache(obj)
-	if obj:IsA("ProximityPrompt") then
-		for i, p in workspacePromptCache do
-			if p == obj then
-				table.remove(workspacePromptCache, i)
-				break
-			end
-		end
-	end
-end
-
-local function buildWorkspacePromptCache()
-	workspacePromptCache = {}
-	for _, desc in Workspace:GetDescendants() do
-		if desc:IsA("ProximityPrompt") then
-			table.insert(workspacePromptCache, desc)
-		end
-	end
-end
-
-local function updateNpcScanState()
-	local anyNpcPresent = mysteriousSellerPresent or djPresent
-	if anyNpcPresent and not npcScanActive then
-		npcScanActive = true
-		buildWorkspacePromptCache()
-	elseif not anyNpcPresent and npcScanActive then
-		npcScanActive = false
-		workspacePromptCache = {}
-	end
-end
-
+-- NPC presence tracking via AncestryChanged
 local function setupNpcFolderEvents(folder)
-	folder.ChildAdded:Connect(function(child)
+	local function onNpcChildAdded(child)
 		if child.Name == "Mysterious Seller" then
 			mysteriousSellerFolder = child
 			mysteriousSellerPresent = true
-			updateNpcScanState()
+			child.AncestryChanged:Connect(function()
+				if not child.Parent or not child:IsDescendantOf(folder) then
+					if mysteriousSellerFolder == child then
+						mysteriousSellerPresent = false
+						mysteriousSellerFolder = nil
+					end
+				end
+			end)
 		elseif child.Name == "DJ" then
 			djFolder = child
 			djPresent = true
-			updateNpcScanState()
+			child.AncestryChanged:Connect(function()
+				if not child.Parent or not child:IsDescendantOf(folder) then
+					if djFolder == child then
+						djPresent = false
+						djFolder = nil
+					end
+				end
+			end)
 		end
-	end)
-	folder.ChildRemoving:Connect(function(child)
-		if child.Name == "Mysterious Seller" then
-			mysteriousSellerPresent = false
-			mysteriousSellerFolder = nil
-			updateNpcScanState()
-		elseif child.Name == "DJ" then
-			djPresent = false
-			djFolder = nil
-			updateNpcScanState()
-		end
-	end)
+	end
+
+	folder.ChildAdded:Connect(onNpcChildAdded)
+	for _, child in folder:GetChildren() do
+		onNpcChildAdded(child)
+	end
 end
 
 if npcsGuilds then
@@ -606,24 +578,10 @@ else
 			mysteriousSellerPresent = mysteriousSellerFolder ~= nil
 			djFolder = child:FindFirstChild("DJ")
 			djPresent = djFolder ~= nil
-			updateNpcScanState()
 			setupNpcFolderEvents(child)
 		end
 	end)
 end
-
--- Keep prompt cache in sync (only when NPC scan is active)
-Workspace.DescendantAdded:Connect(function(desc)
-	if npcScanActive then
-		addPromptToCache(desc)
-	end
-end)
-
-Workspace.DescendantRemoving:Connect(function(desc)
-	if npcScanActive then
-		removePromptFromCache(desc)
-	end
-end)
 
 local function isPromptAllowed(prompt)
 	if not prompt then return false end
@@ -632,6 +590,17 @@ local function isPromptAllowed(prompt)
 		return true
 	end
 	return false
+end
+
+-- Substring matching for NPC categories (ObjectText like "Sell Charge111111!" or "DJ Troll Offers Holy Chain!")
+local function findMatchingItem(objectText, catIdx)
+	if not objectText then return nil end
+	for itemName in categoryItemSet[catIdx] do
+		if string.find(objectText, itemName, 1, true) then
+			return itemName
+		end
+	end
+	return nil
 end
 
 local function isCharacterAlive()
@@ -720,35 +689,29 @@ local function mainLoop()
 					end
 				end
 
-				-- Priority 2: Mysterious Seller (scan all Workspace prompts when NPC is present)
-				if categoryEnabled[2] and not acted and mysteriousSellerPresent then
-					for _, prompt in workspacePromptCache do
-						if prompt.Parent then
-							local objectText = prompt.ObjectText
-							if objectText and categoryItemSet[2][objectText] and itemStates[objectText] then
-								local model = prompt:FindFirstAncestorOfClass("Model")
-								if model and model.Parent then
-									teleportAndActivate(model, prompt)
-									acted = true
-									break
-								end
+				-- Priority 2: Mysterious Seller (scan NPC model descendants when present)
+				if categoryEnabled[2] and not acted and mysteriousSellerPresent and mysteriousSellerFolder and mysteriousSellerFolder.Parent then
+					for _, desc in mysteriousSellerFolder:GetDescendants() do
+						if desc:IsA("ProximityPrompt") and desc.Parent and desc.Enabled then
+							local matchedItem = findMatchingItem(desc.ObjectText, 2)
+							if matchedItem and itemStates[matchedItem] then
+								teleportAndActivate(mysteriousSellerFolder, desc)
+								acted = true
+								break
 							end
 						end
 					end
 				end
 
-				-- Priority 3: DJ (scan all Workspace prompts when NPC is present)
-				if categoryEnabled[3] and not acted and djPresent then
-					for _, prompt in workspacePromptCache do
-						if prompt.Parent then
-							local objectText = prompt.ObjectText
-							if objectText and categoryItemSet[3][objectText] and itemStates[objectText] then
-								local model = prompt:FindFirstAncestorOfClass("Model")
-								if model and model.Parent then
-									teleportAndActivate(model, prompt)
-									acted = true
-									break
-								end
+				-- Priority 3: DJ (scan NPC model descendants when present)
+				if categoryEnabled[3] and not acted and djPresent and djFolder and djFolder.Parent then
+					for _, desc in djFolder:GetDescendants() do
+						if desc:IsA("ProximityPrompt") and desc.Parent and desc.Enabled then
+							local matchedItem = findMatchingItem(desc.ObjectText, 3)
+							if matchedItem and itemStates[matchedItem] then
+								teleportAndActivate(djFolder, desc)
+								acted = true
+								break
 							end
 						end
 					end
