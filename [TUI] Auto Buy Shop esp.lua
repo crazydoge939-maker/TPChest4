@@ -34,6 +34,7 @@ local CATEGORIES = {
 			"Purchase Kings Arm!",
 			"Purchase Space Egg!",
 			"Purchase Blood Tear!",
+			"Purchase Stormy Cloud!",
 			"Purchase Saints Head!",
 			"Purchase Saints Brain!",
 			"Purchase Saints Torso!",
