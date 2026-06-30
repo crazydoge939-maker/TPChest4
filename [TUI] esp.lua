@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -100,7 +100,7 @@ task.spawn(function()
 	end
 end)
 
--- Быстрое получение объектов по именам из кэша
+-- Быстрое получение объектов по именам из кэша (с фильтром по высоте)
 local function getObjectsByNames(names)
 	if cacheDirty then rebuildCache() end
 	local objects = {}
@@ -109,7 +109,10 @@ local function getObjectsByNames(names)
 		if cached then
 			for _, obj in ipairs(cached) do
 				if obj.Parent then
-					table.insert(objects, obj)
+					local y = obj.Position.Y
+					if y >= MinHeight and y <= MaxHeight then
+						table.insert(objects, obj)
+					end
 				end
 			end
 		end
@@ -338,12 +341,6 @@ local CAMERA_UP_OFFSET = 30
 local cameraConn
 local originalCameraType = nil
 
-local function hasTargetObjectsInWorkspace()
-	local chests = getObjectsByNames(CHEST_NAMES)
-	local items = getObjectsByNames(ITEM_NAMES)
-	return (#chests > 0 or #items > 0)
-end
-
 local function startTopDownCamera()
 	if cameraConn then return end
 	local camera = workspace.CurrentCamera
@@ -560,11 +557,18 @@ togglePromptBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Автоматическое включение/выключение камеры сверху
--- Камера включается только когда авто сбор включён и есть объекты для сбора
+-- Камера включается только когда авто сбор включён и есть ДОСТУПНЫЕ объекты для сбора
+local cameraCheckAccum = 0
 task.spawn(function()
 	while true do
-		if promptAutoActivate and hasTargetObjectsInWorkspace() then
-			startTopDownCamera()
+		if promptAutoActivate then
+			local chests = getAccessibleObjects(CHEST_NAMES)
+			local items = getAccessibleObjects(ITEM_NAMES)
+			if #chests > 0 or #items > 0 then
+				startTopDownCamera()
+			else
+				stopTopDownCamera()
+			end
 		else
 			stopTopDownCamera()
 		end
