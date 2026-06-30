@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local masterEnabled = true
@@ -49,6 +50,7 @@ local CATEGORIES = {
 			"Charge",
 			"Shattered Chain",
 			"Ghoul's Tentacle",
+			"Ruler's Diary",
 			"Dark Chest",
 			"Paper",
 			"Warp Spiral",
@@ -728,6 +730,98 @@ local function mainLoop()
 	end
 end
 
+-- ===================== КАМЕРА: ВИД СВЕРХУ =====================
+local CAMERA_UP_OFFSET = 30
+local cameraConn
+local originalCameraType = nil
+
+local function hasBuyTargets()
+	if not mainRunning then return false end
+
+	-- Priority 1: Black Market — ищем промпт с включённым предметом
+	if categoryEnabled[1] then
+		for _, obj in blackMarketModels do
+			if obj.Parent then
+				local prompt = findProximityPromptInModel(obj)
+				if isPromptAllowed(prompt) then
+					return true
+				end
+			end
+		end
+	end
+
+	-- Priority 2: Mysterious Seller — ищем промпт с включённым предметом
+	if categoryEnabled[2] and mysteriousSellerPresent and mysteriousSellerFolder and mysteriousSellerFolder.Parent then
+		for _, desc in mysteriousSellerFolder:GetDescendants() do
+			if desc:IsA("ProximityPrompt") and desc.Parent and desc.Enabled then
+				local matchedItem = findMatchingItem(desc.ObjectText, 2)
+				if matchedItem and itemStates[matchedItem] then
+					return true
+				end
+			end
+		end
+	end
+
+	-- Priority 3: DJ — ищем промпт с включённым предметом
+	if categoryEnabled[3] and djPresent and djFolder and djFolder.Parent then
+		for _, desc in djFolder:GetDescendants() do
+			if desc:IsA("ProximityPrompt") and desc.Parent and desc.Enabled then
+				local matchedItem = findMatchingItem(desc.ObjectText, 3)
+				if matchedItem and itemStates[matchedItem] then
+					return true
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+local function startTopDownCamera()
+	if cameraConn then return end
+	local camera = Workspace.CurrentCamera
+	if not camera then return end
+	originalCameraType = camera.CameraType
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	cameraConn = RunService.RenderStepped:Connect(function()
+		local character = player.Character
+		if not character then return end
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if not hrp or not hrp.Parent then return end
+		local cam = Workspace.CurrentCamera
+		if not cam then return end
+		local charPos = hrp.Position
+		local camPos = charPos + Vector3.new(0, CAMERA_UP_OFFSET, 0)
+		cam.CFrame = CFrame.new(camPos, charPos)
+	end)
+end
+
+local function stopTopDownCamera()
+	if cameraConn then
+		cameraConn:Disconnect()
+		cameraConn = nil
+	end
+	local camera = Workspace.CurrentCamera
+	if camera and originalCameraType then
+		camera.CameraType = originalCameraType
+		originalCameraType = nil
+	end
+end
+
+-- Автоматическое включение/выключение камеры
+-- Камера включается когда AutoBuy активен и есть объекты для покупки
+task.spawn(function()
+	while true do
+		if hasBuyTargets() then
+			startTopDownCamera()
+		else
+			stopTopDownCamera()
+		end
+		task.wait(1)
+	end
+end)
+
 -- Connect category toggle buttons
 for i, catBtn in catToggleButtons do
 	catBtn.MouseButton1Click:Connect(function()
@@ -743,6 +837,7 @@ for i, catBtn in catToggleButtons do
 			task.spawn(mainLoop)
 		elseif not anyOn then
 			mainRunning = false
+			stopTopDownCamera()
 		end
 	end)
 end
