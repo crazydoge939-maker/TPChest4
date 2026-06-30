@@ -19,12 +19,12 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
 local CHEST_NAMES = {
-	"chests", 
+	"chests",  
 	"Dark Chest_p", 
 	"Light Chest_p"
 }
@@ -333,6 +333,47 @@ local function activatePrompt(prompt)
 	promptDebounce[prompt] = nil
 end
 
+-- ========== Камера: сверху, смотрит вниз на игрока ==========
+local CAMERA_UP_OFFSET = 30
+local cameraConn
+local originalCameraType = nil
+
+local function hasTargetObjectsInWorkspace()
+	local chests = getObjectsByNames(CHEST_NAMES)
+	local items = getObjectsByNames(ITEM_NAMES)
+	return (#chests > 0 or #items > 0)
+end
+
+local function startTopDownCamera()
+	if cameraConn then return end
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	originalCameraType = camera.CameraType
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	cameraConn = runService.RenderStepped:Connect(function()
+		local hrp = humanoidRootPart
+		if not hrp or not hrp.Parent then return end
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local charPos = hrp.Position
+		local camPos = charPos + Vector3.new(0, CAMERA_UP_OFFSET, 0)
+		cam.CFrame = CFrame.new(camPos, charPos)
+	end)
+end
+
+local function stopTopDownCamera()
+	if cameraConn then
+		cameraConn:Disconnect()
+		cameraConn = nil
+	end
+	local camera = workspace.CurrentCamera
+	if camera and originalCameraType then
+		camera.CameraType = originalCameraType
+		originalCameraType = nil
+	end
+end
+
 -- Активация промптов рядом с игроком (использует кэш вместо GetDescendants)
 local function activateAllNearbyPrompts(modelNames)
 	local hrp = humanoidRootPart
@@ -369,6 +410,8 @@ local function activateAllNearbyPrompts(modelNames)
 			end
 		end
 	end
+
+	-- Камера уже настроена на вид сверху
 
 	-- Активируем все промпты одновременно через отдельные корутины
 	for _, prompt in ipairs(promptsToActivate) do
@@ -510,6 +553,23 @@ togglePromptBtn.MouseButton1Click:Connect(function()
 	promptAutoActivate = not promptAutoActivate
 	togglePromptBtn.Text = "Авто сбор " .. (promptAutoActivate and "[ON]" or "[OFF]")
 	togglePromptBtn.BackgroundColor3 = promptAutoActivate and Color3.fromRGB(85, 0, 255) or Color3.fromRGB(24, 0, 36)
+	-- Если авто сбор выключен — сразу выключаем камеру
+	if not promptAutoActivate then
+		stopTopDownCamera()
+	end
+end)
+
+-- Автоматическое включение/выключение камеры сверху
+-- Камера включается только когда авто сбор включён и есть объекты для сбора
+task.spawn(function()
+	while true do
+		if promptAutoActivate and hasTargetObjectsInWorkspace() then
+			startTopDownCamera()
+		else
+			stopTopDownCamera()
+		end
+		task.wait(1)
+	end
 end)
 
 -- Переменные для ноклипа
@@ -565,7 +625,7 @@ end
 local function createNoclipButton()
 	noclipButton = createButtonWithOutline(
 		"NoClip [OFF]",
-		UDim2.new(0.6, 0, 0.1, 0),
+		UDim2.new(0.6, 0, 0.08, 0),
 		UDim2.new(0.345, 0, 0.77, 0),
 		Color3.fromRGB(0, 0, 0),
 		panel
@@ -586,6 +646,8 @@ local function createNoclipButton()
 end
 
 createNoclipButton()
+
+
 
 local function stopTeleportCycleChests()
 	teleportingChests = false
