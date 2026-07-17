@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -19,7 +20,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -494,17 +495,14 @@ local function ensureCombinedCycle()
 			local bothEnabled = teleportingChests and teleportingItems
 
 			if bothEnabled then
-				-- Приоритет: сначала сундуки, потом предметы
-				-- Объекты с лимитом попыток (skipObjects) не считаются доступными
+				-- Объединяем сундуки и предметы в один список и ТП к ближайшему
 				local chests = getAccessibleObjects(CHEST_NAMES)
-				if #chests > 0 then
-					teleportToNearest(chests)
-				else
-					-- Сундуков нет (или все пропущены) — переключаемся на предметы
-					local items = getAccessibleObjects(ITEM_NAMES)
-					if #items > 0 then
-						teleportToNearest(items)
-					end
+				local items = getAccessibleObjects(ITEM_NAMES)
+				local allObjects = {}
+				for _, obj in ipairs(chests) do table.insert(allObjects, obj) end
+				for _, obj in ipairs(items) do table.insert(allObjects, obj) end
+				if #allObjects > 0 then
+					teleportToNearest(allObjects)
 				end
 			elseif teleportingChests then
 				local chests = getAccessibleObjects(CHEST_NAMES)
