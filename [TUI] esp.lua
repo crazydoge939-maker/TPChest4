@@ -20,7 +20,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -424,7 +424,7 @@ local teleportingItems = false
 
 local skipObjects = {} -- [part] = true — объекты, пропускаемые после 3 неудачных попыток
 local failedAttempts = {} -- [part] = count — счётчик неудачных телепортов
-local MAX_FAILED_ATTEMPTS = 3
+local MAX_FAILED_ATTEMPTS = 1
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
 
 -- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
