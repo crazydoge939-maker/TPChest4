@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -450,7 +449,7 @@ local teleportingItems = false
 local retryCooldown = {} -- [obj] = время (os.clock), когда объект можно снова попробовать после неудачи
 local RETRY_DELAY = 30 -- повторная попытка через 30 секунд после неудачного телепорта
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
-local SEARCH_RADIUS = 500 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
+local SEARCH_RADIUS = 9999999 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
 
 -- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
 local function getAccessibleObjects(names)
