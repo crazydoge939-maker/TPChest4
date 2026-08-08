@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -288,7 +288,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.5
+local cooldownSeconds = 1
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -467,7 +467,7 @@ local function teleportToNearest(accessibleList)
 	teleportToPart(selected)
 
 	-- Проверяем, собрался ли целевой объект
-	task.wait(0.1)
+	task.wait(0.05)
 	if selected.Parent then
 		failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
 		if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
