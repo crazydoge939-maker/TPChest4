@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -289,7 +288,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.02
+local cooldownSeconds = 0.05
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -318,6 +317,7 @@ local function teleportToPart(part)
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
+	wait(0.01)
 	humanoidRootPart.CanCollide = true
 end
 
@@ -330,9 +330,9 @@ local function activatePrompt(prompt)
 	if promptDebounce[prompt] then return end
 	promptDebounce[prompt] = true
 	prompt:InputHoldBegin()
-	task.wait(0.05)
+	task.wait(0.2)
 	prompt:InputHoldEnd()
-	task.wait(0.05)
+	task.wait(0.1)
 	promptDebounce[prompt] = nil
 end
 
@@ -425,7 +425,6 @@ local retryCooldown = {} -- [obj] = время (os.clock), когда объек
 local RETRY_DELAY = 30 -- повторная попытка через 30 секунд после неудачного телепорта
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
 local SEARCH_RADIUS = 500 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
-local COLLECT_TIMEOUT = 1.0 -- сколько секунд ждать сбора объекта после телепорта, прежде чем двигаться дальше
 
 -- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
 local function getAccessibleObjects(names)
@@ -445,27 +444,6 @@ local function getAccessibleObjects(names)
 		end
 	end
 	return accessible
-end
-
--- Найти промпт для конкретного объекта (на самом объекте, его детях или модели-родителе)
-local function findPromptForObject(obj)
-	local targets = {obj}
-	for _, child in ipairs(obj:GetChildren()) do
-		table.insert(targets, child)
-	end
-	if obj.Parent and obj.Parent:IsA("Model") then
-		for _, sibling in ipairs(obj.Parent:GetChildren()) do
-			if sibling:IsA("ProximityPrompt") then
-				table.insert(targets, sibling)
-			end
-		end
-	end
-	for _, target in ipairs(targets) do
-		if target:IsA("ProximityPrompt") and target.Enabled then
-			return target
-		end
-	end
-	return nil
 end
 
 -- Вспомогательная функция: телепорт к ближайшему объекту из списка (линейный поиск, без сортировки)
@@ -488,18 +466,8 @@ local function teleportToNearest(accessibleList)
 
 	teleportToPart(selected)
 
-	-- Активируем промпт целевого объекта напрямую, чтобы он успел собраться
-	local prompt = findPromptForObject(selected)
-	if prompt then
-		activatePrompt(prompt)
-	end
-
-	-- Ждём, пока объект соберётся (с таймаутом), прежде чем телепортироваться дальше
-	local deadline = os.clock() + COLLECT_TIMEOUT
-	while selected.Parent and os.clock() < deadline do
-		task.wait(0.05)
-	end
-
+	-- Проверяем, собрался ли целевой объект
+	task.wait(0.05)
 	if selected.Parent then
 		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
 		retryCooldown[selected] = os.clock() + RETRY_DELAY
@@ -624,7 +592,7 @@ task.spawn(function()
 			activateAllNearbyPrompts(CHEST_NAMES)
 			activateAllNearbyPrompts(ITEM_NAMES)
 		end
-		task.wait(0.2)
+		task.wait(0.5)
 	end
 end)
 
