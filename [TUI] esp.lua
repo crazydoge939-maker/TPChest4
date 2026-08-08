@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -289,7 +288,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.2
+local cooldownSeconds = 0.02
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -318,7 +317,6 @@ local function teleportToPart(part)
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
-	wait(0.05)
 	humanoidRootPart.CanCollide = true
 end
 
@@ -331,9 +329,9 @@ local function activatePrompt(prompt)
 	if promptDebounce[prompt] then return end
 	promptDebounce[prompt] = true
 	prompt:InputHoldBegin()
-	task.wait(0.2)
+	task.wait(0.05)
 	prompt:InputHoldEnd()
-	task.wait(0.1)
+	task.wait(0.05)
 	promptDebounce[prompt] = nil
 end
 
@@ -468,7 +466,7 @@ local function teleportToNearest(accessibleList)
 	teleportToPart(selected)
 
 	-- Проверяем, собрался ли целевой объект
-	task.wait(0.1)
+	task.wait(0.02)
 	if selected.Parent then
 		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
 		retryCooldown[selected] = os.clock() + RETRY_DELAY
@@ -593,7 +591,7 @@ task.spawn(function()
 			activateAllNearbyPrompts(CHEST_NAMES)
 			activateAllNearbyPrompts(ITEM_NAMES)
 		end
-		task.wait(0.5)
+		task.wait(0.2)
 	end
 end)
 
