@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -51,6 +52,31 @@ local ITEM_NAMES = {
 local ALL_NAMES = {}
 for _, name in ipairs(CHEST_NAMES) do ALL_NAMES[name] = true end
 for _, name in ipairs(ITEM_NAMES) do ALL_NAMES[name] = true end
+
+-- ========== ПРИОРИТЕТ ТЕЛЕПОРТАЦИИ ==========
+-- Объекты выше в списке телепортируются в первую очередь.
+-- Объекты, не указанные в списке, обрабатываются в последнюю очередь.
+-- Среди объектов одного приоритета выбирается ближайший.
+local PRIORITY_ORDER = {
+	"Ancient Fragment_p",
+	"Saints Head_p",
+	"Saints Torso_p",
+	"Saints Leg_p",
+	"Saints Arm_p",
+	"Saints Finger_p",
+	"Troll-096 Loot Bag",
+	"Trollge King Loot Bag",
+	
+	
+	
+	"Light Chest_p",
+	"Dark Chest_p",
+}
+
+local PRIORITY_MAP = {}
+for i, name in ipairs(PRIORITY_ORDER) do
+	PRIORITY_MAP[name] = i
+end
 
 -- ========== КЭШ ОБЪЕКТОВ (вместо GetDescendants каждый кадр) ==========
 local objectCache = {} -- [name] = {parts...}
@@ -288,7 +314,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.05
+local cooldownSeconds = 0.2
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -446,18 +472,32 @@ local function getAccessibleObjects(names)
 	return accessible
 end
 
+-- Определить приоритет объекта (по имени объекта или его модели-родителя)
+local function getPriority(obj)
+	local p = PRIORITY_MAP[obj.Name]
+	if p then return p end
+	if obj.Parent then
+		p = PRIORITY_MAP[obj.Parent.Name]
+		if p then return p end
+	end
+	return #PRIORITY_ORDER + 1 -- объекты вне списка — в последнюю очередь
+end
+
 -- Вспомогательная функция: телепорт к ближайшему объекту из списка (линейный поиск, без сортировки)
 local function teleportToNearest(accessibleList)
 	if #accessibleList == 0 then return nil end
 	if not humanoidRootPart or not humanoidRootPart.Parent then return nil end
 
-	-- Линейный поиск ближайшего объекта (O(n) вместо O(n log n) сортировки)
+	-- Поиск объекта: сначала по приоритету, затем по расстоянию
 	local hrpPos = humanoidRootPart.Position
 	local selected = nil
+	local bestPriority = math.huge
 	local bestDist = math.huge
 	for _, obj in ipairs(accessibleList) do
+		local priority = getPriority(obj)
 		local dist = (obj.Position - hrpPos).Magnitude
-		if dist < bestDist then
+		if priority < bestPriority or (priority == bestPriority and dist < bestDist) then
+			bestPriority = priority
 			bestDist = dist
 			selected = obj
 		end
