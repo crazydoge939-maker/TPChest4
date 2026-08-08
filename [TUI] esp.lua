@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -123,6 +122,7 @@ end)
 
 -- Периодическая перестройка кэша (раз в cacheRebuildInterval секунд)
 task.spawn(function()
+	rebuildCache() -- первичная сборка кэша сразу
 	while true do
 		if cacheDirty then
 			rebuildCache()
@@ -133,7 +133,8 @@ end)
 
 -- Быстрое получение объектов по именам из кэша (с фильтром по высоте)
 local function getObjectsByNames(names)
-	if cacheDirty then rebuildCache() end
+	-- НЕ перестраиваем кэш синхронно здесь: полный скан workspace в горячем цикле
+	-- телепортации сильно тормозит. Перестройкой занимается фоновый поток.
 	local objects = {}
 	for _, name in ipairs(names) do
 		local cached = objectCache[name]
@@ -319,7 +320,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.02
+local cooldownSeconds = 0.01
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -346,10 +347,8 @@ local teleporting = false
 local function teleportToPart(part)
 	if not part then return end
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
+	-- Мгновенный телепорт без переключения CanCollide (это была лишняя физическая операция)
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
-	humanoidRootPart.CanCollide = false
-	task.wait(0.001)
-	humanoidRootPart.CanCollide = true
 end
 
 local promptDebounce = {} -- трекинг уже активируемых промптов
@@ -361,9 +360,9 @@ local function activatePrompt(prompt)
 	if promptDebounce[prompt] then return end
 	promptDebounce[prompt] = true
 	prompt:InputHoldBegin()
-	task.wait(0.03)
+	task.wait(0.01)
 	prompt:InputHoldEnd()
-	task.wait(0.02)
+	task.wait(0.01)
 	promptDebounce[prompt] = nil
 end
 
@@ -511,8 +510,10 @@ local function teleportToNearest(accessibleList)
 
 	teleportToPart(selected)
 
-	-- Проверяем, собрался ли целевой объект
-	task.wait(0.01)
+	-- Даём время циклу сбора (0.1с) активировать промпт и собрать объект,
+	-- прежде чем решать, что телепорт не удался. Иначе объект ошибочно
+	-- уходит в 30-секундный кулдаун, не будучи собранным.
+	task.wait(0.2)
 	if selected.Parent then
 		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
 		retryCooldown[selected] = os.clock() + RETRY_DELAY
@@ -633,7 +634,7 @@ task.spawn(function()
 			activateAllNearbyPrompts(CHEST_NAMES)
 			activateAllNearbyPrompts(ITEM_NAMES)
 		end
-		task.wait(0.5)
+		task.wait(0.1)
 	end
 end)
 
