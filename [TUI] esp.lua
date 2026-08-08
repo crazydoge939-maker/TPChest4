@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -424,6 +425,7 @@ local retryCooldown = {} -- [obj] = время (os.clock), когда объек
 local RETRY_DELAY = 30 -- повторная попытка через 30 секунд после неудачного телепорта
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
 local SEARCH_RADIUS = 500 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
+local COLLECT_TIMEOUT = 1.0 -- сколько секунд ждать сбора объекта после телепорта, прежде чем двигаться дальше
 
 -- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
 local function getAccessibleObjects(names)
@@ -443,6 +445,27 @@ local function getAccessibleObjects(names)
 		end
 	end
 	return accessible
+end
+
+-- Найти промпт для конкретного объекта (на самом объекте, его детях или модели-родителе)
+local function findPromptForObject(obj)
+	local targets = {obj}
+	for _, child in ipairs(obj:GetChildren()) do
+		table.insert(targets, child)
+	end
+	if obj.Parent and obj.Parent:IsA("Model") then
+		for _, sibling in ipairs(obj.Parent:GetChildren()) do
+			if sibling:IsA("ProximityPrompt") then
+				table.insert(targets, sibling)
+			end
+		end
+	end
+	for _, target in ipairs(targets) do
+		if target:IsA("ProximityPrompt") and target.Enabled then
+			return target
+		end
+	end
+	return nil
 end
 
 -- Вспомогательная функция: телепорт к ближайшему объекту из списка (линейный поиск, без сортировки)
@@ -465,8 +488,18 @@ local function teleportToNearest(accessibleList)
 
 	teleportToPart(selected)
 
-	-- Проверяем, собрался ли целевой объект
-	task.wait(0.02)
+	-- Активируем промпт целевого объекта напрямую, чтобы он успел собраться
+	local prompt = findPromptForObject(selected)
+	if prompt then
+		activatePrompt(prompt)
+	end
+
+	-- Ждём, пока объект соберётся (с таймаутом), прежде чем телепортироваться дальше
+	local deadline = os.clock() + COLLECT_TIMEOUT
+	while selected.Parent and os.clock() < deadline do
+		task.wait(0.05)
+	end
+
 	if selected.Parent then
 		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
 		retryCooldown[selected] = os.clock() + RETRY_DELAY
