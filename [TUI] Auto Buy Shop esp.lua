@@ -41,6 +41,7 @@ local CATEGORIES = {
 			"Purchase Saints Torso!",
 			"Purchase Saints Leg!",
 			"Purchase Saints Arm!",
+			"Purchase Alien Tech!",
 		},
 	},
 	{
