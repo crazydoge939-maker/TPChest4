@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -402,14 +403,24 @@ local function stopTopDownCamera()
 end
 
 -- Активация промптов рядом с игроком (использует кэш вместо GetDescendants)
+-- Радиус, в котором активируются промпты. Объекты дальше этого радиуса
+-- пропускаются сразу (без обхода их детей/братьев) — это снижает нагрузку.
+local PROXY_ACTIVATION_RADIUS = 30
+
 local function activateAllNearbyPrompts(modelNames)
 	local hrp = humanoidRootPart
 	if not hrp or not hrp.Parent then return 0 end
 
 	local promptsToActivate = {}
 	local objects = getObjectsByNames(modelNames)
+	local hrpPos = hrp.Position
 
 	for _, obj in ipairs(objects) do
+		-- Ограничение радиуса: далёкие объекты пропускаем сразу,
+		-- не тратя время на обход их детей и братьев.
+		if (obj.Position - hrpPos).Magnitude > PROXY_ACTIVATION_RADIUS then
+			continue
+		end
 		-- Проверяем промпты на самом объекте и его детях
 		local targets = {obj}
 		for _, child in ipairs(obj:GetChildren()) do
