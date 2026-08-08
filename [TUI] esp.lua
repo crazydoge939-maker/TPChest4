@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -51,6 +52,11 @@ local ITEM_NAMES = {
 local ALL_NAMES = {}
 for _, name in ipairs(CHEST_NAMES) do ALL_NAMES[name] = true end
 for _, name in ipairs(ITEM_NAMES) do ALL_NAMES[name] = true end
+
+-- Объединённый список имён (для сканирования кэша один раз)
+local COMBINED_NAMES = {}
+for _, name in ipairs(CHEST_NAMES) do table.insert(COMBINED_NAMES, name) end
+for _, name in ipairs(ITEM_NAMES) do table.insert(COMBINED_NAMES, name) end
 
 -- ========== ПРИОРИТЕТ ТЕЛЕПОРТАЦИИ ==========
 -- Объекты выше в списке телепортируются в первую очередь.
@@ -313,7 +319,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 0.2
+local cooldownSeconds = 0.02
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -342,7 +348,7 @@ local function teleportToPart(part)
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
-	wait(0.01)
+	task.wait(0.001)
 	humanoidRootPart.CanCollide = true
 end
 
@@ -355,9 +361,9 @@ local function activatePrompt(prompt)
 	if promptDebounce[prompt] then return end
 	promptDebounce[prompt] = true
 	prompt:InputHoldBegin()
-	task.wait(0.2)
+	task.wait(0.03)
 	prompt:InputHoldEnd()
-	task.wait(0.1)
+	task.wait(0.02)
 	promptDebounce[prompt] = nil
 end
 
@@ -506,7 +512,7 @@ local function teleportToNearest(accessibleList)
 	teleportToPart(selected)
 
 	-- Проверяем, собрался ли целевой объект
-	task.wait(0.05)
+	task.wait(0.01)
 	if selected.Parent then
 		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
 		retryCooldown[selected] = os.clock() + RETRY_DELAY
@@ -543,11 +549,7 @@ local function ensureCombinedCycle()
 
 			if bothEnabled then
 				-- Объединяем сундуки и предметы в один список и ТП к ближайшему
-				local chests = getAccessibleObjects(CHEST_NAMES)
-				local items = getAccessibleObjects(ITEM_NAMES)
-				local allObjects = {}
-				for _, obj in ipairs(chests) do table.insert(allObjects, obj) end
-				for _, obj in ipairs(items) do table.insert(allObjects, obj) end
+				local allObjects = getAccessibleObjects(COMBINED_NAMES)
 				if #allObjects > 0 then
 					teleportToNearest(allObjects)
 				end
@@ -563,7 +565,7 @@ local function ensureCombinedCycle()
 				end
 			end
 
-			wait(cooldownSeconds)
+			task.wait(cooldownSeconds)
 		end
 		retryCooldown = {}
 	end)()
