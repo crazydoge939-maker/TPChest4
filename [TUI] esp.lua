@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -288,7 +289,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 1
+local cooldownSeconds = 0.2
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -421,9 +422,8 @@ end
 local teleportingChests = false
 local teleportingItems = false
 
-local skipObjects = {} -- [part] = true — объекты, пропускаемые после 3 неудачных попыток
-local failedAttempts = {} -- [part] = count — счётчик неудачных телепортов
-local MAX_FAILED_ATTEMPTS = 3
+local retryCooldown = {} -- [obj] = время (os.clock), когда объект можно снова попробовать после неудачи
+local RETRY_DELAY = 30 -- повторная попытка через 30 секунд после неудачного телепорта
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
 local SEARCH_RADIUS = 500 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
 
@@ -432,8 +432,9 @@ local function getAccessibleObjects(names)
 	local objects = getAllObjectsByNames(names)
 	local accessible = {}
 	local hrpPos = humanoidRootPart and humanoidRootPart.Parent and humanoidRootPart.Position
+	local now = os.clock()
 	for _, obj in pairs(objects) do
-		if obj.Parent and not skipObjects[obj] then
+		if obj.Parent and not (retryCooldown[obj] and retryCooldown[obj] > now) then
 			local y = obj.Position.Y
 			if y >= MinHeight and y <= MaxHeight then
 				-- Фильтр по радиусу: не берём слишком далёкие объекты (снижает нагрузку)
@@ -467,16 +468,13 @@ local function teleportToNearest(accessibleList)
 	teleportToPart(selected)
 
 	-- Проверяем, собрался ли целевой объект
-	task.wait(0.05)
+	task.wait(0.1)
 	if selected.Parent then
-		failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
-		if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
-			skipObjects[selected] = true
-		end
+		-- Не удалось собрать — повторная попытка через RETRY_DELAY секунд
+		retryCooldown[selected] = os.clock() + RETRY_DELAY
 	else
-		-- Объект собран — очищаем счётчики
-		failedAttempts[selected] = nil
-		skipObjects[selected] = nil
+		-- Объект собран — очищаем кулдаун
+		retryCooldown[selected] = nil
 	end
 	return selected
 end
@@ -493,8 +491,7 @@ local function ensureCombinedCycle()
 			-- Если оба режима выключены — останавливаем цикл
 			if not teleportingChests and not teleportingItems then
 				combinedCycleRunning = false
-				skipObjects = {}
-				failedAttempts = {}
+				retryCooldown = {}
 				return
 			end
 
@@ -530,8 +527,7 @@ local function ensureCombinedCycle()
 
 			wait(cooldownSeconds)
 		end
-		skipObjects = {}
-		failedAttempts = {}
+		retryCooldown = {}
 	end)()
 end
 
