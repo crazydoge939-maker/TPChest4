@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -20,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -289,7 +288,7 @@ task.spawn(function()
 end)
 
 -- Кулдаун и управление
-local cooldownSeconds = 1
+local cooldownSeconds = 0.5
 local cooldownBox = Instance.new("TextBox")
 cooldownBox.Size = UDim2.new(0.25, 0, 0.1, 0)
 cooldownBox.Position = UDim2.new(0.06, 0, 0.65, 0)
@@ -318,7 +317,7 @@ local function teleportToPart(part)
 	if not humanoidRootPart or not humanoidRootPart.Parent then return end
 	humanoidRootPart.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
 	humanoidRootPart.CanCollide = false
-	wait(0.1)
+	wait(0.05)
 	humanoidRootPart.CanCollide = true
 end
 
@@ -424,38 +423,51 @@ local teleportingItems = false
 
 local skipObjects = {} -- [part] = true — объекты, пропускаемые после 3 неудачных попыток
 local failedAttempts = {} -- [part] = count — счётчик неудачных телепортов
-local MAX_FAILED_ATTEMPTS = 1
+local MAX_FAILED_ATTEMPTS = 3
 local NEARBY_RADIUS = 25 -- радиус для одновременного сбора близких объектов
+local SEARCH_RADIUS = 500 -- максимальный радиус поиска ближайшего объекта (снижает нагрузку)
 
 -- Вспомогательная функция: получить доступные объекты по именам (исключая пропущенные из-за лимита)
 local function getAccessibleObjects(names)
 	local objects = getAllObjectsByNames(names)
 	local accessible = {}
+	local hrpPos = humanoidRootPart and humanoidRootPart.Parent and humanoidRootPart.Position
 	for _, obj in pairs(objects) do
 		if obj.Parent and not skipObjects[obj] then
 			local y = obj.Position.Y
 			if y >= MinHeight and y <= MaxHeight then
-				table.insert(accessible, obj)
+				-- Фильтр по радиусу: не берём слишком далёкие объекты (снижает нагрузку)
+				if hrpPos and (obj.Position - hrpPos).Magnitude <= SEARCH_RADIUS then
+					table.insert(accessible, obj)
+				end
 			end
 		end
 	end
 	return accessible
 end
 
--- Вспомогательная функция: телепорт к ближайшему объекту из списка
+-- Вспомогательная функция: телепорт к ближайшему объекту из списка (линейный поиск, без сортировки)
 local function teleportToNearest(accessibleList)
 	if #accessibleList == 0 then return nil end
 	if not humanoidRootPart or not humanoidRootPart.Parent then return nil end
-	table.sort(accessibleList, function(a, b)
-		local distA = (a.Position - humanoidRootPart.Position).Magnitude
-		local distB = (b.Position - humanoidRootPart.Position).Magnitude
-		return distA < distB
-	end)
-	local selected = accessibleList[1]
+
+	-- Линейный поиск ближайшего объекта (O(n) вместо O(n log n) сортировки)
+	local hrpPos = humanoidRootPart.Position
+	local selected = nil
+	local bestDist = math.huge
+	for _, obj in ipairs(accessibleList) do
+		local dist = (obj.Position - hrpPos).Magnitude
+		if dist < bestDist then
+			bestDist = dist
+			selected = obj
+		end
+	end
+	if not selected then return nil end
+
 	teleportToPart(selected)
 
 	-- Проверяем, собрался ли целевой объект
-	task.wait(0.5)
+	task.wait(0.1)
 	if selected.Parent then
 		failedAttempts[selected] = (failedAttempts[selected] or 0) + 1
 		if failedAttempts[selected] >= MAX_FAILED_ATTEMPTS then
