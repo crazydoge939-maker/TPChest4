@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -45,6 +44,7 @@ local CATEGORIES = {
 		name = "Mysterious Seller",
 		items = {
 			"Acid Cup",
+			"Charge",
 			"Shattered Chain",
 			"Ghoul's Tentacle",
 			"Ruler's Diary",
@@ -734,7 +734,6 @@ local originalCameraType = nil
 
 local function hasBuyTargets()
 	if not mainRunning then return false end
-	if not isCharacterAlive() then return false end
 
 	-- Priority 1: Black Market — ищем промпт с включённым предметом
 	if categoryEnabled[1] then
@@ -779,9 +778,7 @@ local function startTopDownCamera()
 	if cameraConn then return end
 	local camera = Workspace.CurrentCamera
 	if not camera then return end
-	if camera.CameraType ~= Enum.CameraType.Scriptable then
-		originalCameraType = camera.CameraType
-	end
+	originalCameraType = camera.CameraType
 	camera.CameraType = Enum.CameraType.Scriptable
 
 	cameraConn = RunService.RenderStepped:Connect(function()
@@ -804,13 +801,8 @@ local function stopTopDownCamera()
 	end
 	local camera = Workspace.CurrentCamera
 	if camera and originalCameraType then
-		local restoreType = originalCameraType
+		camera.CameraType = originalCameraType
 		originalCameraType = nil
-		if restoreType == Enum.CameraType.Scriptable then
-			camera.CameraType = Enum.CameraType.Custom
-		else
-			camera.CameraType = restoreType
-		end
 	end
 end
 
