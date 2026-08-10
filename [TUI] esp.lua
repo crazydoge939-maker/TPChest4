@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -20,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -754,6 +753,53 @@ startItemButton.MouseButton1Click:Connect(function()
 		ensureCombinedCycle()
 	end
 end)
+
+-- ========== ВНЕШНЕЕ УПРАВЛЕНИЕ (для AutoBuy) ==========
+-- Позволяет другим скриптам включать/выключать режимы напрямую.
+-- nil-значение означает "не менять этот режим".
+_G.setAutoFarmModes = function(chests, items, collect)
+	-- Сундуки
+	if chests ~= nil then
+		if chests and not teleportingChests then
+			teleportingChests = true
+			startChestButton.Text = "Сундуки [ON]"
+			startChestButton.BackgroundColor3 = Color3.fromRGB(136, 45, 0)
+			startChestButton.BorderColor3 = Color3.new(1, 0.333333, 0)
+			startChestButton.TextColor3 = Color3.new(1, 0.333333, 0)
+		elseif not chests and teleportingChests then
+			stopTeleportCycleChests()
+		end
+	end
+	-- Предметы
+	if items ~= nil then
+		if items and not teleportingItems then
+			teleportingItems = true
+			startItemButton.Text = "Предметы [ON]"
+			startItemButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
+			startItemButton.BorderColor3 = Color3.new(0, 1, 1)
+			startItemButton.TextColor3 = Color3.new(0, 1, 1)
+		elseif not items and teleportingItems then
+			stopTeleportCycleItems()
+		end
+	end
+	-- Авто сбор
+	if collect ~= nil then
+		if collect and not promptAutoActivate then
+			promptAutoActivate = true
+			togglePromptBtn.Text = "Авто сбор [ON]"
+			togglePromptBtn.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
+		elseif not collect and promptAutoActivate then
+			promptAutoActivate = false
+			togglePromptBtn.Text = "Авто сбор [OFF]"
+			togglePromptBtn.BackgroundColor3 = Color3.fromRGB(24, 0, 36)
+			stopTopDownCamera()
+		end
+	end
+	-- Если какой-то режим включён — гарантируем запуск цикла
+	if teleportingChests or teleportingItems then
+		ensureCombinedCycle()
+	end
+end
 
 -- ТП для другого объекта
 local function teleportPlayerToObject(target)
