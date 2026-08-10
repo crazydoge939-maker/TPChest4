@@ -1,3 +1,4 @@
+
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -85,7 +86,7 @@ end
 -- ========== КЭШ ОБЪЕКТОВ (вместо GetDescendants каждый кадр) ==========
 local objectCache = {} -- [name] = {parts...}
 local cacheDirty = true -- флаг: нужно ли перестроить кэш
-local cacheRebuildInterval = 2 -- перестроение раз в 2 секунды (вместо каждого кадра)
+local cacheRebuildInterval = 0.5 -- перестроение раз в 0.5 сек (быстрее реагирует на появление объектов)
 
 local function rebuildCache()
 	objectCache = {}
@@ -619,6 +620,13 @@ local cameraCheckAccum = 0
 task.spawn(function()
 	while true do
 		if promptAutoActivate then
+			-- Принудительно перестраиваем кэш, если он устарел, чтобы камера
+			-- мгновенно реагировала на появление новых объектов (не ждём 0.5с
+			-- фонового цикла). Этот цикл не в горячем пути телепортации, поэтому
+			-- полный скан здесь безопасен и происходит только при cacheDirty.
+			if cacheDirty then
+				rebuildCache()
+			end
 			local chests = getAccessibleObjects(CHEST_NAMES)
 			local items = getAccessibleObjects(ITEM_NAMES)
 			if #chests > 0 or #items > 0 then
@@ -629,7 +637,7 @@ task.spawn(function()
 		else
 			stopTopDownCamera()
 		end
-		task.wait(1)
+		task.wait(0.3)
 	end
 end)
 
