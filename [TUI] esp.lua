@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = -110
+local MinHeight = 110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
