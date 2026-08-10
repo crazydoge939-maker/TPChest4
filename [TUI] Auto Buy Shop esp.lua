@@ -44,6 +44,7 @@ local CATEGORIES = {
 		name = "Mysterious Seller",
 		items = {
 			"Acid Cup",
+			"Charge",
 			"Shattered Chain",
 			"Ghoul's Tentacle",
 			"Ruler's Diary",
@@ -731,9 +732,8 @@ local CAMERA_UP_OFFSET = 30
 local cameraConn
 local originalCameraType = nil
 
-local function hasBuyTargets()
+local function hasBuyTargetPresent()
 	if not mainRunning then return false end
-	if not isCharacterAlive() then return false end
 
 	-- Priority 1: Black Market — ищем промпт с включённым предметом
 	if categoryEnabled[1] then
@@ -774,13 +774,15 @@ local function hasBuyTargets()
 	return false
 end
 
+local function hasBuyTargets()
+	return hasBuyTargetPresent()
+end
+
 local function startTopDownCamera()
 	if cameraConn then return end
 	local camera = Workspace.CurrentCamera
 	if not camera then return end
-	if camera.CameraType ~= Enum.CameraType.Scriptable then
-		originalCameraType = camera.CameraType
-	end
+	originalCameraType = camera.CameraType
 	camera.CameraType = Enum.CameraType.Scriptable
 
 	cameraConn = RunService.RenderStepped:Connect(function()
@@ -803,25 +805,96 @@ local function stopTopDownCamera()
 	end
 	local camera = Workspace.CurrentCamera
 	if camera and originalCameraType then
-		local restoreType = originalCameraType
+		camera.CameraType = originalCameraType
 		originalCameraType = nil
-		if restoreType == Enum.CameraType.Scriptable then
-			camera.CameraType = Enum.CameraType.Custom
-		else
-			camera.CameraType = restoreType
-		end
 	end
 end
 
--- Автоматическое включение/выключение камеры
--- Камера включается когда AutoBuy активен и есть объекты для покупки
+-- ===================== ОТКЛЮЧЕНИЕ ТП/СБОРА ПРИ ПОКУПКЕ =====================
+-- Когда появляется нужный объект для покупки, отключаем режимы
+-- "Сундуки", "Предметы" и "Авто сбор" из панели AutoFarm,
+-- а после исчезновения объекта возвращаем их прежние значения.
+
+local wasBuying = false
+local chestsWasOn = false
+local itemsWasOn = false
+local collectWasOn = false
+
+local function getAutoFarmButton(prefix)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return nil end
+	local screenGui = playerGui:FindFirstChild("TeleportChestPanel")
+	if not screenGui then return nil end
+	local panel = screenGui:FindFirstChildOfClass("Frame")
+	if not panel then return nil end
+	for _, child in panel:GetChildren() do
+		if child:IsA("TextButton") and string.find(child.Text, prefix, 1, true) then
+			return child
+		end
+	end
+	return nil
+end
+
+local function isButtonOn(btn)
+	return btn ~= nil and string.find(btn.Text, "[ON]", 1, true) ~= nil
+end
+
+local function disableBuyModes()
+	local chestsBtn = getAutoFarmButton("Сундуки")
+	local itemsBtn = getAutoFarmButton("Предметы")
+	local collectBtn = getAutoFarmButton("Авто сбор")
+
+	-- Запоминаем текущее состояние кнопок
+	chestsWasOn = isButtonOn(chestsBtn)
+	itemsWasOn = isButtonOn(itemsBtn)
+	collectWasOn = isButtonOn(collectBtn)
+
+	-- Выключаем все режимы через глобальную функцию AutoFarm
+	if _G.setAutoFarmModes then
+		_G.setAutoFarmModes(false, false, false)
+	end
+end
+
+local function restoreBuyModes()
+	-- Возвращаем режимы в прежнее состояние
+	if _G.setAutoFarmModes then
+		_G.setAutoFarmModes(chestsWasOn, itemsWasOn, collectWasOn)
+	end
+	chestsWasOn = false
+	itemsWasOn = false
+	collectWasOn = false
+end
+
+-- Автоматическое включение/выключение камеры и управление ТП/сбором
 task.spawn(function()
 	while true do
+		-- Управление ТП/сбором по появлению/исчезновению объекта
+		if hasBuyTargetPresent() then
+			if not wasBuying then
+				wasBuying = true
+				disableBuyModes()
+			end
+		else
+			if wasBuying then
+				wasBuying = false
+				-- Ждём 2 секунды перед восстановлением режимов
+				task.wait(2)
+				-- Если за это время объект снова появился — оставляем режимы выключенными
+				if hasBuyTargetPresent() then
+					wasBuying = true
+				else
+					restoreBuyModes()
+				end
+			end
+		end
+
+		-- Управление камерой
 		if hasBuyTargets() then
 			startTopDownCamera()
 		else
 			stopTopDownCamera()
 		end
+
 		task.wait(1)
 	end
 end)
