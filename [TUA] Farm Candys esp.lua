@@ -2,6 +2,7 @@
 -- Авто-телепорт к случайной двери из Model TrickorTreatDoors по интервалу.
 -- При телепорте к двери её ProximityPrompt активируется автоматически (удержание 0).
 
+
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
@@ -36,6 +37,15 @@ local function getDoorsModel()
 	return nil
 end
 
+-- Ищет ProximityPrompt внутри Door -> Attachment
+local function getDoorPrompt(door)
+	local attachment = door:FindFirstChildOfClass("Attachment")
+	if not attachment then
+		return nil
+	end
+	return attachment:FindFirstChildOfClass("ProximityPrompt")
+end
+
 -- Возвращает двери, у которых ProximityPrompt существует и включен
 local function getValidDoors()
 	local model = getDoorsModel()
@@ -45,7 +55,7 @@ local function getValidDoors()
 	local doors = {}
 	for _, child in model:GetChildren() do
 		if child:IsA("BasePart") and child.Name == CONFIG.DoorName then
-			local prompt = child:FindFirstChildOfClass("ProximityPrompt")
+			local prompt = getDoorPrompt(child)
 			if prompt and prompt.Enabled then
 				table.insert(doors, child)
 			end
@@ -66,7 +76,7 @@ end
 
 -- Активирует ProximityPrompt двери с нулевым удержанием
 local function triggerPrompt(door)
-	local prompt = door:FindFirstChildOfClass("ProximityPrompt")
+	local prompt = getDoorPrompt(door)
 	if not prompt then
 		return
 	end
