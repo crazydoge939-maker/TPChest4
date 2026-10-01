@@ -2,7 +2,6 @@
 -- Авто-телепорт к случайной двери из Model TrickorTreatDoors по интервалу.
 -- При телепорте к двери её ProximityPrompt активируется автоматически (удержание 0).
 
-
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
@@ -64,6 +63,46 @@ local function getValidDoors()
 	return doors
 end
 
+-- ================== НУЛЕВОЕ УДЕРЖАНИЕ ДЛЯ ВСЕХ ПРОМПТОВ ==================
+
+-- Ставит HoldDuration = 0 у промпта двери
+local function applyZeroHold(door)
+	if not (door:IsA("BasePart") and door.Name == CONFIG.DoorName) then
+		return
+	end
+	local prompt = getDoorPrompt(door)
+	if prompt then
+		prompt.HoldDuration = 0
+	end
+end
+
+-- Применяет нулевое удержание ко всем текущим дверям и следит за новыми
+local function setupZeroHold()
+	local model = getDoorsModel()
+	if not model then
+		return false
+	end
+	for _, door in model:GetChildren() do
+		applyZeroHold(door)
+	end
+	model.ChildAdded:Connect(applyZeroHold)
+	-- Если ProximityPrompt добавляется в уже существующую дверь позже
+	model.DescendantAdded:Connect(function(desc)
+		if desc:IsA("ProximityPrompt") then
+			desc.HoldDuration = 0
+		end
+	end)
+	return true
+end
+
+-- При появлении скрипта сразу ставим удержание 0 у всех промптов
+-- (если модель ещё не загружена — ждём её появления)
+task.spawn(function()
+	while not setupZeroHold() do
+		task.wait(0.5)
+	end
+end)
+
 -- ================== ТЕЛЕПОРТ ==================
 
 local function getCharacterRoot()
@@ -74,14 +113,15 @@ local function getCharacterRoot()
 	return character:FindFirstChild("HumanoidRootPart")
 end
 
--- Активирует ProximityPrompt двери с нулевым удержанием
+-- Активирует ProximityPrompt двери с нулевым удержанием.
+-- Блокирующая: ждёт срабатывания с повторами, чтобы телепорт к следующей двери
+-- не начинался, пока промпт текущей двери не активирован (или не истекли попытки).
 local function triggerPrompt(door)
 	local prompt = getDoorPrompt(door)
 	if not prompt then
-		return
+		return false
 	end
 
-	local originalHold = prompt.HoldDuration
 	local originalLineOfSight = prompt.RequiresLineOfSight
 
 	local triggered = false
@@ -89,33 +129,48 @@ local function triggerPrompt(door)
 		triggered = true
 	end)
 
-	task.spawn(function()
-		-- Промпт должен появиться на экране, прежде чем его можно активировать.
-		-- Пробуем несколько раз с задержкой — сразу после телепорта ProximityPromptService
-		-- ещё не успел обнаружить игрока рядом с дверью.
-		for _ = 1, 10 do
-			if triggered or not prompt.Parent then
-				break
-			end
+	prompt.RequiresLineOfSight = false -- промпт виден с любой стороны двери
 
-			prompt.HoldDuration = 0 -- удержание 0 — срабатывает мгновенно
-			prompt.RequiresLineOfSight = false -- промпт виден с любой стороны двери
-
-			prompt:InputHoldBegin()
-			task.wait(0.1)
-			prompt:InputHoldEnd()
-
-			task.wait(0.2)
+	-- Промпт можно активировать только когда он отображён на экране.
+	-- Сразу после телепорта ProximityPromptService ещё не обнаружил игрока,
+	-- а камера не успела обновиться — поэтому пробуем много раз с задержкой.
+	for _ = 1, 20 do
+		if triggered then
+			break
+		end
+		if not prompt.Parent or not prompt.Enabled then
+			break -- промпт удалён или выключен игрой (например, кулдаун двери)
 		end
 
-		conn:Disconnect()
-
-		-- Возвращаем исходные значения после срабатывания
-		if prompt and prompt.Parent then
-			prompt.HoldDuration = originalHold
-			prompt.RequiresLineOfSight = originalLineOfSight
+		-- Если игрока унесло от двери (другой телепорт, падение и т.п.) — прекращаем
+		local currentRoot = getCharacterRoot()
+		if not currentRoot then
+			break
 		end
-	end)
+		if (currentRoot.Position - door.Position).Magnitude > prompt.MaxActivationDistance + 5 then
+			break
+		end
+
+		prompt.HoldDuration = 0 -- удержание 0 — срабатывает мгновенно
+		prompt.RequiresLineOfSight = false
+
+		prompt:InputHoldBegin()
+		task.wait(0.15)
+		prompt:InputHoldEnd()
+
+		if not triggered then
+			task.wait(0.25)
+		end
+	end
+
+	conn:Disconnect()
+
+	-- Возвращаем исходное значение после срабатывания
+	if prompt and prompt.Parent then
+		prompt.RequiresLineOfSight = originalLineOfSight
+	end
+
+	return triggered
 end
 
 local function teleportToRandomDoor()
@@ -135,8 +190,9 @@ local function teleportToRandomDoor()
 	local targetPos = (door.CFrame * offset).Position
 	root.CFrame = CFrame.lookAt(targetPos, door.Position)
 
-	-- Даём движку кадр на применение телепорта, затем активируем промпт
-	task.wait(0.1)
+	-- Даём движку время применить телепорт, а камере — обновиться,
+	-- затем активируем промпт (блокирующе, до срабатывания)
+	task.wait(0.25)
 	triggerPrompt(door)
 	return true
 end
