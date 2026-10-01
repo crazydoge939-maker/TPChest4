@@ -340,6 +340,51 @@ statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Text = ""
 statusLabel.Parent = main
 
+-- ================== КАМЕРА СВЕРХУ ВНИЗ ==================
+
+local RunService = game:GetService("RunService")
+
+local cameraHeight = 40 -- высота камеры над игроком
+local cameraConn = nil
+
+-- Каждый кадр держим камеру над игроком и смотрим вниз
+local function startTopDownCamera()
+	if cameraConn then
+		return -- уже включена
+	end
+	cameraConn = RunService.RenderStepped:Connect(function()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local root = getCharacterRoot()
+		if not root then
+			return
+		end
+		-- Камера пересоздаётся при респавне — переключаем в Scriptable заново
+		if camera.CameraType ~= Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+		local pos = root.Position
+		camera.CFrame = CFrame.lookAt(
+			Vector3.new(pos.X, pos.Y + cameraHeight, pos.Z),
+			pos
+		)
+	end)
+end
+
+-- Возвращаем камеру в обычный режим (вид от персонажа)
+local function stopTopDownCamera()
+	if cameraConn then
+		cameraConn:Disconnect()
+		cameraConn = nil
+	end
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end
+
 -- ================== ЛОГИКА GUI ==================
 
 local function updateGui()
@@ -363,6 +408,11 @@ end
 
 toggleButton.MouseButton1Click:Connect(function()
 	enabled = not enabled
+	if enabled then
+		startTopDownCamera()
+	else
+		stopTopDownCamera()
+	end
 	updateGui()
 end)
 
