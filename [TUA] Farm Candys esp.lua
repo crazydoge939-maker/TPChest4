@@ -6,6 +6,8 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local CONFIG = {
+	MapName = "map",
+	EventName = "HALLOWEEN",
 	ModelName = "TrickorTreatDoors",
 	DoorName = "Door",
 	DefaultInterval = 5,
@@ -19,7 +21,15 @@ local interval = CONFIG.DefaultInterval
 -- ================== ПОИСК ДВЕРЕЙ ==================
 
 local function getDoorsModel()
-	local model = workspace:FindFirstChild(CONFIG.ModelName)
+	local map = workspace:FindFirstChild(CONFIG.MapName)
+	if not map then
+		return nil
+	end
+	local event = map:FindFirstChild(CONFIG.EventName)
+	if not event then
+		return nil
+	end
+	local model = event:FindFirstChild(CONFIG.ModelName)
 	if model and model:IsA("Model") then
 		return model
 	end
