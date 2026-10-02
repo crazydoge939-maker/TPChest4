@@ -11,7 +11,7 @@ local CONFIG = {
 	ModelName = "TrickorTreatDoors",
 	DoorName = "Door",
 	DefaultInterval = 5,
-	MinInterval = 0.5,
+	MinInterval = 0,
 	StandoffDistance = 3, -- расстояние от двери при телепорте
 }
 
