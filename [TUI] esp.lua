@@ -19,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -70,9 +70,9 @@ local PRIORITY_ORDER = {
 	"Saints Finger_p",
 	"Troll-096 Loot Bag",
 	"Trollge King Loot Bag",
-	
-	
-	
+
+
+
 	"Light Chest_p",
 	"Dark Chest_p",
 }
@@ -649,6 +649,13 @@ local trickOrTreatPrevState = nil
 
 task.spawn(function()
 	while true do
+		-- Если AutoKill обрабатывает убийства — не трогаем TrickOrTreat,
+		-- пусть AutoKill сам управляет кнопками в это время
+		if _G.getAutoKillProcessing and _G.getAutoKillProcessing() then
+			task.wait(0.5)
+			continue
+		end
+
 		if teleportingChests or teleportingItems then
 			if cacheDirty then
 				rebuildCache()
@@ -665,7 +672,10 @@ task.spawn(function()
 				trickOrTreatDisabledByAutoFarm = true
 			elseif not hasObjects and trickOrTreatDisabledByAutoFarm then
 				if _G.setTrickOrTreatEnabled and trickOrTreatPrevState ~= nil then
-					_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+					-- Восстанавливаем только если пользователь не включил вручную
+					if _G.getTrickOrTreatEnabled and not _G.getTrickOrTreatEnabled() then
+						_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+					end
 				end
 				trickOrTreatDisabledByAutoFarm = false
 				trickOrTreatPrevState = nil
@@ -674,7 +684,10 @@ task.spawn(function()
 			-- Авто-фарм выключен — возвращаем Trick or Treat в исходное состояние
 			if trickOrTreatDisabledByAutoFarm then
 				if _G.setTrickOrTreatEnabled and trickOrTreatPrevState ~= nil then
-					_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+					-- Восстанавливаем только если пользователь не включил вручную
+					if _G.getTrickOrTreatEnabled and not _G.getTrickOrTreatEnabled() then
+						_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+					end
 				end
 				trickOrTreatDisabledByAutoFarm = false
 				trickOrTreatPrevState = nil
