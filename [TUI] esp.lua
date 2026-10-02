@@ -1,4 +1,3 @@
-
 local player = game.Players.LocalPlayer
 local character = nil
 local humanoidRootPart = nil
@@ -20,7 +19,7 @@ local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local MinHeight = 110
+local MinHeight = -110
 local MaxHeight = 210
 
 -- Полные списки имён для поиска
@@ -641,6 +640,50 @@ task.spawn(function()
 	end
 end)
 
+-- ========== УПРАВЛЕНИЕ TRICK OR TREAT TP ==========
+-- Когда AutoFarm находит доступные сундуки и/или предметы (other),
+-- отключаем телепорт Trick or Treat, чтобы избежать конфликтов.
+-- Когда объектов больше нет — возвращаем предыдущее состояние.
+local trickOrTreatDisabledByAutoFarm = false
+local trickOrTreatPrevState = nil
+
+task.spawn(function()
+	while true do
+		if teleportingChests or teleportingItems then
+			if cacheDirty then
+				rebuildCache()
+			end
+			local chests = getAccessibleObjects(CHEST_NAMES)
+			local items = getAccessibleObjects(ITEM_NAMES)
+			local hasObjects = #chests > 0 or #items > 0
+
+			if hasObjects and not trickOrTreatDisabledByAutoFarm then
+				if _G.getTrickOrTreatEnabled and _G.setTrickOrTreatEnabled then
+					trickOrTreatPrevState = _G.getTrickOrTreatEnabled()
+					_G.setTrickOrTreatEnabled(false)
+				end
+				trickOrTreatDisabledByAutoFarm = true
+			elseif not hasObjects and trickOrTreatDisabledByAutoFarm then
+				if _G.setTrickOrTreatEnabled and trickOrTreatPrevState ~= nil then
+					_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+				end
+				trickOrTreatDisabledByAutoFarm = false
+				trickOrTreatPrevState = nil
+			end
+		else
+			-- Авто-фарм выключен — возвращаем Trick or Treat в исходное состояние
+			if trickOrTreatDisabledByAutoFarm then
+				if _G.setTrickOrTreatEnabled and trickOrTreatPrevState ~= nil then
+					_G.setTrickOrTreatEnabled(trickOrTreatPrevState)
+				end
+				trickOrTreatDisabledByAutoFarm = false
+				trickOrTreatPrevState = nil
+			end
+		end
+		task.wait(0.5)
+	end
+end)
+
 -- Переменные для ноклипа
 local noclipEnabled = false
 local noclipButton
@@ -807,6 +850,11 @@ _G.setAutoFarmModes = function(chests, items, collect)
 	if teleportingChests or teleportingItems then
 		ensureCombinedCycle()
 	end
+end
+
+-- Получение текущих состояний (для AutoKill)
+_G.getAutoFarmModes = function()
+	return teleportingChests, teleportingItems
 end
 
 -- ТП для другого объекта
