@@ -416,6 +416,23 @@ toggleButton.MouseButton1Click:Connect(function()
 	updateGui()
 end)
 
+-- ================== ВНЕШНЕЕ УПРАВЛЕНИЕ (для AutoKill) ==================
+_G.getTrickOrTreatEnabled = function()
+	return enabled
+end
+
+_G.setTrickOrTreatEnabled = function(state)
+	if enabled ~= state then
+		enabled = state
+		if enabled then
+			startTopDownCamera()
+		else
+			stopTopDownCamera()
+		end
+		updateGui()
+	end
+end
+
 intervalBox.FocusLost:Connect(function()
 	local value = tonumber(intervalBox.Text)
 	if value and value >= CONFIG.MinInterval then
