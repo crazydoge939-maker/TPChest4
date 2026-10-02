@@ -87,6 +87,32 @@ local function startAutoTP()
 end
 
 -- ============================================================
+-- Teleport player to the Portal
+-- ============================================================ 
+local function teleportToPortal()
+	local character = player.Character
+	if not character then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local map = Workspace:FindFirstChild("Map")
+	if not map then return end
+	local portal = map:FindFirstChild("Portal")
+	if not portal or not portal:IsA("BasePart") then return end
+
+	local portalPos = portal.Position
+	local portalLook = portal.CFrame.LookVector
+	local standDistance = 2
+	local targetPos = Vector3.new(
+		portalPos.X - portalLook.X * standDistance,
+		portalPos.Y,
+		portalPos.Z - portalLook.Z * standDistance
+	)
+	local lookAt = Vector3.new(portalPos.X, targetPos.Y, portalPos.Z)
+	hrp.CFrame = CFrame.lookAt(targetPos, lookAt)
+end
+
+-- ============================================================
 -- Build the draggable GUI panel
 -- ============================================================ 
 local gui = Instance.new("ScreenGui")
@@ -96,8 +122,8 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Name = "MainFrame"
-frame.Size = UDim2.new(0, 200, 0, 80)
-frame.Position = UDim2.new(0, 20, 0.5, -40)
+frame.Size = UDim2.new(0, 200, 0, 124)
+frame.Position = UDim2.new(0, 20, 0.5, -62)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -144,6 +170,22 @@ local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 6)
 toggleCorner.Parent = toggleBtn
 
+-- Portal button
+local portalBtn = Instance.new("TextButton")
+portalBtn.Name = "PortalTP"
+portalBtn.Size = UDim2.new(1, -20, 0, 36)
+portalBtn.Position = UDim2.new(0, 10, 0, 80)
+portalBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+portalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+portalBtn.Font = Enum.Font.GothamBold
+portalBtn.TextSize = 13
+portalBtn.Text = "TP to Portal"
+portalBtn.Parent = frame
+
+local portalCorner = Instance.new("UICorner")
+portalCorner.CornerRadius = UDim.new(0, 6)
+portalCorner.Parent = portalBtn
+
 -- ============================================================
 -- Toggle logic: turning ON immediately auto-teleports
 -- ============================================================ 
@@ -157,6 +199,13 @@ toggleBtn.MouseButton1Click:Connect(function()
 		toggleBtn.Text = "TP: OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 	end
+end)
+
+-- ============================================================
+-- Portal button logic
+-- ============================================================ 
+portalBtn.MouseButton1Click:Connect(function()
+	teleportToPortal()
 end)
 
 -- ============================================================
