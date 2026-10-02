@@ -1,0 +1,162 @@
+-- Динамически подсвечивает все модели SlenderTree и показывает оповещение
+-- при спавне нового дерева. UI полностью на Scale — корректно на любых экранах.
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local HIGHLIGHT_NAME = "TreeHighlight"
+local localPlayer = Players.LocalPlayer
+
+-- ===== Подсветка =====
+local function addHighlight(tree)
+	if not tree:FindFirstChild(HIGHLIGHT_NAME) then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = HIGHLIGHT_NAME
+		highlight.FillColor = Color3.fromRGB(0, 255, 140)
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = tree
+	end
+end
+
+local function removeHighlight(tree)
+	local highlight = tree:FindFirstChild(HIGHLIGHT_NAME)
+	if highlight then
+		highlight:Destroy()
+	end
+end
+
+local function isSlenderTree(instance)
+	return instance:IsA("Model") and instance.Name == "SlenderTree"
+end
+
+-- ===== UI оповещений (всё на Scale) =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SlenderTreeNotifications"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+-- Вертикальный контейнер сверху по центру экрана
+local container = Instance.new("Frame")
+container.Name = "Notifications"
+container.AnchorPoint = Vector2.new(0.5, 0)
+container.Position = UDim2.fromScale(0.5, 0.03)
+container.Size = UDim2.fromScale(0.35, 0.1)
+container.BackgroundTransparency = 1
+container.Parent = screenGui
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.FillDirection = Enum.FillDirection.Vertical
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.Padding = UDim.new(0.05, 0)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = container
+
+-- Показывает один баннер и плавно убирает его через 3 секунды
+local function showNotification()
+	local banner = Instance.new("Frame")
+	banner.Name = "SpawnBanner"
+	banner.Size = UDim2.fromScale(1, 0.45)
+	banner.BackgroundColor3 = Color3.fromRGB(20, 30, 20)
+	banner.BackgroundTransparency = 0.15
+	banner.BorderSizePixel = 0
+	banner.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.15, 0)
+	corner.Parent = banner
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(0, 255, 140)
+	stroke.Thickness = 2
+	stroke.Parent = banner
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Text"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.Text = "SlenderTree заспавнилась!"
+	label.TextColor3 = Color3.fromRGB(0, 255, 140)
+	label.TextScaled = true -- текст тоже масштабируется
+	label.Parent = banner
+
+	-- Ограничиваем размер текста, чтобы он не был слишком большим
+	local textSize = Instance.new("UITextSizeConstraint")
+	textSize.MaxTextSize = 26
+	textSize.MinTextSize = 12
+	textSize.Parent = label
+
+	-- Анимация появления
+	banner.BackgroundTransparency = 1
+	stroke.Transparency = 1
+	label.TextTransparency = 1
+
+	local info = TweenInfo.new(0.3)
+	TweenService:Create(banner, info, { BackgroundTransparency = 0.15 }):Play()
+	TweenService:Create(stroke, info, { Transparency = 0 }):Play()
+	TweenService:Create(label, info, { TextTransparency = 0 }):Play()
+
+	-- Плавное исчезновение и удаление
+	task.delay(3, function()
+		if not banner.Parent then return end
+		local infoOut = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(banner, infoOut, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(stroke, infoOut, { Transparency = 1 }):Play()
+		TweenService:Create(label, infoOut, { TextTransparency = 1 }):Play()
+		task.wait(0.45)
+		banner:Destroy()
+	end)
+end
+
+-- ===== Слежение за деревьями =====
+local seen = {} -- чтобы не дублировать оповещение для одного дерева
+
+local function onTreeAdded(tree)
+	if seen[tree] then return end
+	seen[tree] = true
+	addHighlight(tree)
+	showNotification()
+	tree.Destroying:Connect(function()
+		seen[tree] = nil
+	end)
+end
+
+-- Слежу за появлением/удалением деревьев в нужных контейнерах
+local function watchContainer(container)
+	container.ChildAdded:Connect(function(child)
+		if isSlenderTree(child) then
+			onTreeAdded(child)
+		end
+	end)
+	container.ChildRemoved:Connect(function(child)
+		if isSlenderTree(child) then
+			removeHighlight(child)
+		end
+	end)
+end
+
+-- Подсветить уже существующие деревья (без оповещения) и следить за map
+local map = workspace:FindFirstChild("map")
+if map then
+	for _, child in map:GetChildren() do
+		if isSlenderTree(child) then
+			seen[child] = true
+			addHighlight(child)
+		end
+	end
+	watchContainer(map)
+end
+
+-- Если SlenderTree может появиться в другом месте Workspace — следим и там
+watchContainer(workspace)
+
+-- Если папка map появится позже — начнём следить и за ней
+workspace.ChildAdded:Connect(function(child)
+	if (child:IsA("Model") or child:IsA("Folder")) and child.Name == "map" then
+		watchContainer(child)
+	end
+end)
