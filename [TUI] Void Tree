@@ -1,162 +1,248 @@
--- Динамически подсвечивает все модели SlenderTree и показывает оповещение
--- при спавне нового дерева. UI полностью на Scale — корректно на любых экранах.
 
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
-local HIGHLIGHT_NAME = "TreeHighlight"
-local localPlayer = Players.LocalPlayer
+local player = Players.LocalPlayer
 
--- ===== Подсветка =====
-local function addHighlight(tree)
-	if not tree:FindFirstChild(HIGHLIGHT_NAME) then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = HIGHLIGHT_NAME
-		highlight.FillColor = Color3.fromRGB(0, 255, 140)
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-		highlight.FillTransparency = 0.7
-		highlight.OutlineTransparency = 0
-		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		highlight.Parent = tree
-	end
+-- ============================================================
+-- Find the Page folder
+-- ============================================================
+local function getPageFolder()
+	local map = Workspace:FindFirstChild("Map")
+	if not map then return nil end
+	return map:FindFirstChild("Page")
 end
 
-local function removeHighlight(tree)
-	local highlight = tree:FindFirstChild(HIGHLIGHT_NAME)
-	if highlight then
-		highlight:Destroy()
-	end
-end
+-- Cache original HoldDuration values so we can restore them
+local originalHoldDurations = {}
+local tpActive = false
+local tpRunning = false -- prevents multiple loops
 
-local function isSlenderTree(instance)
-	return instance:IsA("Model") and instance.Name == "SlenderTree"
-end
-
--- ===== UI оповещений (всё на Scale) =====
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SlenderTreeNotifications"
-screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
-
--- Вертикальный контейнер сверху по центру экрана
-local container = Instance.new("Frame")
-container.Name = "Notifications"
-container.AnchorPoint = Vector2.new(0.5, 0)
-container.Position = UDim2.fromScale(0.5, 0.03)
-container.Size = UDim2.fromScale(0.35, 0.1)
-container.BackgroundTransparency = 1
-container.Parent = screenGui
-
-local listLayout = Instance.new("UIListLayout")
-listLayout.FillDirection = Enum.FillDirection.Vertical
-listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-listLayout.Padding = UDim.new(0.05, 0)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Parent = container
-
--- Показывает один баннер и плавно убирает его через 3 секунды
-local function showNotification()
-	local banner = Instance.new("Frame")
-	banner.Name = "SpawnBanner"
-	banner.Size = UDim2.fromScale(1, 0.45)
-	banner.BackgroundColor3 = Color3.fromRGB(20, 30, 20)
-	banner.BackgroundTransparency = 0.15
-	banner.BorderSizePixel = 0
-	banner.Parent = container
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.15, 0)
-	corner.Parent = banner
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(0, 255, 140)
-	stroke.Thickness = 2
-	stroke.Parent = banner
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.GothamBold
-	label.Text = "SlenderTree заспавнилась!"
-	label.TextColor3 = Color3.fromRGB(0, 255, 140)
-	label.TextScaled = true -- текст тоже масштабируется
-	label.Parent = banner
-
-	-- Ограничиваем размер текста, чтобы он не был слишком большим
-	local textSize = Instance.new("UITextSizeConstraint")
-	textSize.MaxTextSize = 26
-	textSize.MinTextSize = 12
-	textSize.Parent = label
-
-	-- Анимация появления
-	banner.BackgroundTransparency = 1
-	stroke.Transparency = 1
-	label.TextTransparency = 1
-
-	local info = TweenInfo.new(0.3)
-	TweenService:Create(banner, info, { BackgroundTransparency = 0.15 }):Play()
-	TweenService:Create(stroke, info, { Transparency = 0 }):Play()
-	TweenService:Create(label, info, { TextTransparency = 0 }):Play()
-
-	-- Плавное исчезновение и удаление
-	task.delay(3, function()
-		if not banner.Parent then return end
-		local infoOut = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		TweenService:Create(banner, infoOut, { BackgroundTransparency = 1 }):Play()
-		TweenService:Create(stroke, infoOut, { Transparency = 1 }):Play()
-		TweenService:Create(label, infoOut, { TextTransparency = 1 }):Play()
-		task.wait(0.45)
-		banner:Destroy()
-	end)
-end
-
--- ===== Слежение за деревьями =====
-local seen = {} -- чтобы не дублировать оповещение для одного дерева
-
-local function onTreeAdded(tree)
-	if seen[tree] then return end
-	seen[tree] = true
-	addHighlight(tree)
-	showNotification()
-	tree.Destroying:Connect(function()
-		seen[tree] = nil
-	end)
-end
-
--- Слежу за появлением/удалением деревьев в нужных контейнерах
-local function watchContainer(container)
-	container.ChildAdded:Connect(function(child)
-		if isSlenderTree(child) then
-			onTreeAdded(child)
-		end
-	end)
-	container.ChildRemoved:Connect(function(child)
-		if isSlenderTree(child) then
-			removeHighlight(child)
-		end
-	end)
-end
-
--- Подсветить уже существующие деревья (без оповещения) и следить за map
-local map = workspace:FindFirstChild("map")
-if map then
-	for _, child in map:GetChildren() do
-		if isSlenderTree(child) then
-			seen[child] = true
-			addHighlight(child)
+local function setHoldDurations(active)
+	local folder = getPageFolder()
+	if not folder then return end
+	for _, page in ipairs(folder:GetChildren()) do
+		local prompt = page:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			if active then
+				if originalHoldDurations[page] == nil then
+					originalHoldDurations[page] = prompt.HoldDuration
+				end
+				prompt.HoldDuration = 0
+			else
+				if originalHoldDurations[page] ~= nil then
+					prompt.HoldDuration = originalHoldDurations[page]
+				end
+			end
 		end
 	end
-	watchContainer(map)
 end
 
--- Если SlenderTree может появиться в другом месте Workspace — следим и там
-watchContainer(workspace)
+-- ============================================================
+-- Teleport player to face a Page at the same Y level
+-- ============================================================ 
+local function teleportToPage(page)
+	local character = player.Character
+	if not character then return false end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
 
--- Если папка map появится позже — начнём следить и за ней
-workspace.ChildAdded:Connect(function(child)
-	if (child:IsA("Model") or child:IsA("Folder")) and child.Name == "map" then
-		watchContainer(child)
+	local pagePos = page.Position
+	local pageLook = page.CFrame.LookVector
+
+	-- Stand in front of the page, facing it, at the same Y level
+	local standDistance = 2
+	local targetPos = Vector3.new(
+		pagePos.X - pageLook.X * standDistance,
+		pagePos.Y,
+		pagePos.Z - pageLook.Z * standDistance
+	)
+
+	-- Face the page directly
+	local lookAt = Vector3.new(pagePos.X, targetPos.Y, pagePos.Z)
+	local newCFrame = CFrame.lookAt(targetPos, lookAt)
+
+	hrp.CFrame = newCFrame
+
+	-- Activate the ProximityPrompt: since we can't fire Triggered from
+	-- a script, replicate the Loot script behaviour (page:Destroy()).
+	-- This is client-side only.
+	task.wait(0.1)
+	if page and page.Parent then
+		page:Destroy()
+	end
+	return true
+end
+
+-- ============================================================
+-- Auto-teleport loop: iterate through all pages automatically
+-- ============================================================
+local function startAutoTP()
+	if tpRunning then return end
+	tpRunning = true
+
+	task.spawn(function()
+		while tpActive do
+			local folder = getPageFolder()
+			if not folder then break end
+
+			local pages = {}
+			for _, child in ipairs(folder:GetChildren()) do
+				if child:IsA("BasePart") then
+					table.insert(pages, child)
+				end
+			end
+
+			if #pages == 0 then break end
+
+			-- Sort by name for consistent order
+			table.sort(pages, function(a, b)
+				return a.Name < b.Name
+			end)
+
+			for _, page in ipairs(pages) do
+				if not tpActive then break end
+				-- Re-check the page still exists
+				if page and page.Parent then
+					teleportToPage(page)
+					task.wait(0.5)
+				end
+			end
+			break
+		end
+		tpRunning = false
+	end)
+end
+
+-- ============================================================
+-- Build the draggable GUI panel
+-- ============================================================ 
+local gui = Instance.new("ScreenGui")
+gui.Name = "PageTPPanel"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Position = UDim2.new(0, 20, 0.5, -40)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+
+-- Title bar (also the drag handle)
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = frame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "Page TP"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.Parent = titleBar
+
+-- Toggle button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "Toggle"
+toggleBtn.Size = UDim2.new(1, -20, 0, 36)
+toggleBtn.Position = UDim2.new(0, 10, 0, 40)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 13
+toggleBtn.Text = "TP: OFF"
+toggleBtn.Parent = frame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleBtn
+
+-- ============================================================
+-- Toggle logic: turning ON immediately auto-teleports
+-- ============================================================ 
+toggleBtn.MouseButton1Click:Connect(function()
+	tpActive = not tpActive
+	if tpActive then
+		toggleBtn.Text = "TP: ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+		setHoldDurations(true)
+		startAutoTP()
+	else
+		toggleBtn.Text = "TP: OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+		setHoldDurations(false)
 	end
 end)
+
+-- ============================================================
+-- Dragging logic
+-- ============================================================ 
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- ============================================================
+-- Keep HoldDuration at 0 for newly added pages while TP is active
+-- ============================================================ 
+local folder = getPageFolder()
+if folder then
+	folder.ChildAdded:Connect(function(child)
+		task.wait(0.1)
+		if tpActive and child:IsA("BasePart") then
+			local prompt = child:FindFirstChildOfClass("ProximityPrompt")
+			if prompt then
+				if originalHoldDurations[child] == nil then
+					originalHoldDurations[child] = prompt.HoldDuration
+				end
+				prompt.HoldDuration = 0
+			end
+			-- Auto-teleport to the new page as well if TP is still active
+			if tpActive and not tpRunning then
+				startAutoTP()
+			end
+		end
+	end)
+end
