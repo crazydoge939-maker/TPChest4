@@ -13,30 +13,8 @@ local function getPageFolder()
 	return map:FindFirstChild("Page")
 end
 
--- Cache original HoldDuration values so we can restore them
-local originalHoldDurations = {}
 local tpActive = false
 local tpRunning = false -- prevents multiple loops
-
-local function setHoldDurations(active)
-	local folder = getPageFolder()
-	if not folder then return end
-	for _, page in ipairs(folder:GetChildren()) do
-		local prompt = page:FindFirstChildOfClass("ProximityPrompt")
-		if prompt then
-			if active then
-				if originalHoldDurations[page] == nil then
-					originalHoldDurations[page] = prompt.HoldDuration
-				end
-				prompt.HoldDuration = 0
-			else
-				if originalHoldDurations[page] ~= nil then
-					prompt.HoldDuration = originalHoldDurations[page]
-				end
-			end
-		end
-	end
-end
 
 -- ============================================================
 -- Teleport player to face a Page at the same Y level
@@ -63,14 +41,6 @@ local function teleportToPage(page)
 	local newCFrame = CFrame.lookAt(targetPos, lookAt)
 
 	hrp.CFrame = newCFrame
-
-	-- Activate the ProximityPrompt: since we can't fire Triggered from
-	-- a script, replicate the Loot script behaviour (page:Destroy()).
-	-- This is client-side only.
-	task.wait(0.1)
-	if page and page.Parent then
-		page:Destroy()
-	end
 	return true
 end
 
@@ -105,10 +75,12 @@ local function startAutoTP()
 				-- Re-check the page still exists
 				if page and page.Parent then
 					teleportToPage(page)
-					task.wait(0.5)
+					-- Wait here until the page is collected (destroyed)
+					while tpActive and page and page.Parent do
+						task.wait(0.1)
+					end
 				end
 			end
-			break
 		end
 		tpRunning = false
 	end)
@@ -180,12 +152,10 @@ toggleBtn.MouseButton1Click:Connect(function()
 	if tpActive then
 		toggleBtn.Text = "TP: ON"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
-		setHoldDurations(true)
 		startAutoTP()
 	else
 		toggleBtn.Text = "TP: OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-		setHoldDurations(false)
 	end
 end)
 
@@ -224,21 +194,13 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ============================================================
--- Keep HoldDuration at 0 for newly added pages while TP is active
+-- Auto-teleport to newly added pages while TP is active
 -- ============================================================ 
 local folder = getPageFolder()
 if folder then
 	folder.ChildAdded:Connect(function(child)
 		task.wait(0.1)
 		if tpActive and child:IsA("BasePart") then
-			local prompt = child:FindFirstChildOfClass("ProximityPrompt")
-			if prompt then
-				if originalHoldDurations[child] == nil then
-					originalHoldDurations[child] = prompt.HoldDuration
-				end
-				prompt.HoldDuration = 0
-			end
-			-- Auto-teleport to the new page as well if TP is still active
 			if tpActive and not tpRunning then
 				startAutoTP()
 			end
