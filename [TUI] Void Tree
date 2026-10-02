@@ -1,248 +1,213 @@
+-- Динамически подсвечивает все модели SlenderTree и показывает оповещение
+-- при спавне нового дерева. UI полностью на Scale — корректно на любых экранах.
 
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
+local HIGHLIGHT_NAME = "TreeHighlight"
+local localPlayer = Players.LocalPlayer
 
--- ============================================================
--- Find the Page folder
--- ============================================================
-local function getPageFolder()
-	local map = Workspace:FindFirstChild("Map")
-	if not map then return nil end
-	return map:FindFirstChild("Page")
-end
-
--- Cache original HoldDuration values so we can restore them
-local originalHoldDurations = {}
-local tpActive = false
-local tpRunning = false -- prevents multiple loops
-
-local function setHoldDurations(active)
-	local folder = getPageFolder()
-	if not folder then return end
-	for _, page in ipairs(folder:GetChildren()) do
-		local prompt = page:FindFirstChildOfClass("ProximityPrompt")
-		if prompt then
-			if active then
-				if originalHoldDurations[page] == nil then
-					originalHoldDurations[page] = prompt.HoldDuration
-				end
-				prompt.HoldDuration = 0
-			else
-				if originalHoldDurations[page] ~= nil then
-					prompt.HoldDuration = originalHoldDurations[page]
-				end
-			end
-		end
+-- ===== Подсветка =====
+local function addHighlight(tree)
+	if not tree:FindFirstChild(HIGHLIGHT_NAME) then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = HIGHLIGHT_NAME
+		highlight.FillColor = Color3.fromRGB(0, 255, 140)
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = tree
 	end
 end
 
--- ============================================================
--- Teleport player to face a Page at the same Y level
--- ============================================================ 
-local function teleportToPage(page)
-	local character = player.Character
-	if not character then return false end
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return false end
-
-	local pagePos = page.Position
-	local pageLook = page.CFrame.LookVector
-
-	-- Stand in front of the page, facing it, at the same Y level
-	local standDistance = 2
-	local targetPos = Vector3.new(
-		pagePos.X - pageLook.X * standDistance,
-		pagePos.Y,
-		pagePos.Z - pageLook.Z * standDistance
-	)
-
-	-- Face the page directly
-	local lookAt = Vector3.new(pagePos.X, targetPos.Y, pagePos.Z)
-	local newCFrame = CFrame.lookAt(targetPos, lookAt)
-
-	hrp.CFrame = newCFrame
-
-	-- Activate the ProximityPrompt: since we can't fire Triggered from
-	-- a script, replicate the Loot script behaviour (page:Destroy()).
-	-- This is client-side only.
-	task.wait(0.1)
-	if page and page.Parent then
-		page:Destroy()
+local function removeHighlight(tree)
+	local highlight = tree:FindFirstChild(HIGHLIGHT_NAME)
+	if highlight then
+		highlight:Destroy()
 	end
-	return true
 end
 
--- ============================================================
--- Auto-teleport loop: iterate through all pages automatically
--- ============================================================
-local function startAutoTP()
-	if tpRunning then return end
-	tpRunning = true
+local function isSlenderTree(instance)
+	return instance:IsA("Model") and instance.Name == "SlenderTree"
+end
 
-	task.spawn(function()
-		while tpActive do
-			local folder = getPageFolder()
-			if not folder then break end
+-- ===== Мини-панель обнаружения (постоянная) =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SlenderTreeNotifications"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-			local pages = {}
-			for _, child in ipairs(folder:GetChildren()) do
-				if child:IsA("BasePart") then
-					table.insert(pages, child)
-				end
-			end
+-- Мини-панель в правом верхнем углу
+local panel = Instance.new("Frame")
+panel.Name = "SlenderTreePanel"
+panel.AnchorPoint = Vector2.new(1, 0)
+panel.Position = UDim2.fromScale(0.97, 0.04)
+panel.Size = UDim2.fromScale(0.22, 0.08)
+panel.BackgroundColor3 = Color3.fromRGB(15, 25, 15)
+panel.BackgroundTransparency = 0.2
+panel.BorderSizePixel = 0
+panel.Parent = screenGui
 
-			if #pages == 0 then break end
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0.12, 0)
+panelCorner.Parent = panel
 
-			-- Sort by name for consistent order
-			table.sort(pages, function(a, b)
-				return a.Name < b.Name
+local panelStroke = Instance.new("UIStroke")
+panelStroke.Name = "Stroke"
+panelStroke.Color = Color3.fromRGB(80, 80, 80)
+panelStroke.Thickness = 1.5
+panelStroke.Transparency = 0.3
+panelStroke.Parent = panel
+
+-- Иконка-индикатор слева
+local indicator = Instance.new("Frame")
+indicator.Name = "Indicator"
+indicator.AnchorPoint = Vector2.new(0, 0.5)
+indicator.Position = UDim2.fromScale(0.06, 0.5)
+indicator.Size = UDim2.fromScale(0.12, 0.55)
+indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+indicator.BorderSizePixel = 0
+indicator.Parent = panel
+
+local indicatorCorner = Instance.new("UICorner")
+indicatorCorner.CornerRadius = UDim.new(1, 0)
+indicatorCorner.Parent = indicator
+
+-- Текст статуса
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.AnchorPoint = Vector2.new(0, 0.5)
+statusLabel.Position = UDim2.fromScale(0.22, 0.35)
+statusLabel.Size = UDim2.fromScale(0.74, 0.4)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.Text = "Нет деревьев"
+statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+statusLabel.TextScaled = true
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = panel
+
+local statusConstraint = Instance.new("UITextSizeConstraint")
+statusConstraint.MaxTextSize = 16
+statusConstraint.MinTextSize = 8
+statusConstraint.Parent = statusLabel
+
+-- Текст счётчика
+local countLabel = Instance.new("TextLabel")
+countLabel.Name = "CountLabel"
+countLabel.AnchorPoint = Vector2.new(0, 0.5)
+countLabel.Position = UDim2.fromScale(0.22, 0.72)
+countLabel.Size = UDim2.fromScale(0.74, 0.3)
+countLabel.BackgroundTransparency = 1
+countLabel.Font = Enum.Font.Gotham
+countLabel.Text = ""
+countLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
+countLabel.TextScaled = true
+countLabel.TextXAlignment = Enum.TextXAlignment.Left
+countLabel.Parent = panel
+
+local countConstraint = Instance.new("UITextSizeConstraint")
+countConstraint.MaxTextSize = 13
+countConstraint.MinTextSize = 7
+countConstraint.Parent = countLabel
+
+-- ===== Состояние панели =====
+local activeTreeCount = 0
+
+local function updatePanel(newTreeDetected)
+	if activeTreeCount > 0 then
+		statusLabel.Text = "SlenderTree обнаружен!"
+		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 140)
+		countLabel.Text = "Активных: " .. activeTreeCount
+		countLabel.TextColor3 = Color3.fromRGB(0, 200, 110)
+		indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
+		panelStroke.Color = Color3.fromRGB(0, 255, 140)
+		panelStroke.Transparency = 0
+		panel.BackgroundColor3 = Color3.fromRGB(15, 35, 20)
+
+		-- Пульс при обнаружении нового дерева
+		if newTreeDetected then
+			local pulseInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			TweenService:Create(panel, pulseInfo, { BackgroundTransparency = 0 }):Play()
+			TweenService:Create(indicator, pulseInfo, { BackgroundColor3 = Color3.fromRGB(100, 255, 170) }):Play()
+			task.delay(0.3, function()
+				local fadeInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+				TweenService:Create(panel, fadeInfo, { BackgroundTransparency = 0.2 }):Play()
+				TweenService:Create(indicator, fadeInfo, { BackgroundColor3 = Color3.fromRGB(0, 255, 140) }):Play()
 			end)
-
-			for _, page in ipairs(pages) do
-				if not tpActive then break end
-				-- Re-check the page still exists
-				if page and page.Parent then
-					teleportToPage(page)
-					task.wait(0.5)
-				end
-			end
-			break
 		end
-		tpRunning = false
-	end)
-end
-
--- ============================================================
--- Build the draggable GUI panel
--- ============================================================ 
-local gui = Instance.new("ScreenGui")
-gui.Name = "PageTPPanel"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame")
-frame.Name = "MainFrame"
-frame.Size = UDim2.new(0, 200, 0, 80)
-frame.Position = UDim2.new(0, 20, 0.5, -40)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
-
--- Title bar (also the drag handle)
-local titleBar = Instance.new("Frame")
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 30)
-titleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-titleBar.BorderSizePixel = 0
-titleBar.Parent = frame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 8)
-titleCorner.Parent = titleBar
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 1, 0)
-title.BackgroundTransparency = 1
-title.Text = "Page TP"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.Parent = titleBar
-
--- Toggle button
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Name = "Toggle"
-toggleBtn.Size = UDim2.new(1, -20, 0, 36)
-toggleBtn.Position = UDim2.new(0, 10, 0, 40)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 13
-toggleBtn.Text = "TP: OFF"
-toggleBtn.Parent = frame
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 6)
-toggleCorner.Parent = toggleBtn
-
--- ============================================================
--- Toggle logic: turning ON immediately auto-teleports
--- ============================================================ 
-toggleBtn.MouseButton1Click:Connect(function()
-	tpActive = not tpActive
-	if tpActive then
-		toggleBtn.Text = "TP: ON"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
-		setHoldDurations(true)
-		startAutoTP()
 	else
-		toggleBtn.Text = "TP: OFF"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-		setHoldDurations(false)
+		statusLabel.Text = "Нет деревьев"
+		statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+		countLabel.Text = ""
+		indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+		panelStroke.Color = Color3.fromRGB(80, 80, 80)
+		panelStroke.Transparency = 0.3
+		panel.BackgroundColor3 = Color3.fromRGB(15, 25, 15)
 	end
-end)
+end
 
--- ============================================================
--- Dragging logic
--- ============================================================ 
-local dragging = false
-local dragStart = nil
-local startPos = nil
+local function showNotification()
+	activeTreeCount = activeTreeCount + 1
+	updatePanel(true)
+end
 
-titleBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = frame.Position
-	end
-end)
+local function onTreeRemoved()
+	activeTreeCount = activeTreeCount - 1
+	if activeTreeCount < 0 then activeTreeCount = 0 end
+	updatePanel(false)
+end
 
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		frame.Position = UDim2.new(
-			startPos.X.Scale, startPos.X.Offset + delta.X,
-			startPos.Y.Scale, startPos.Y.Offset + delta.Y
-		)
-	end
-end)
+-- ===== Слежение за деревьями =====
+local seen = {} -- чтобы не дублировать оповещение для одного дерева
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
+local function onTreeAdded(tree)
+	if seen[tree] then return end
+	seen[tree] = true
+	addHighlight(tree)
+	showNotification()
+	tree.Destroying:Connect(function()
+		seen[tree] = nil
+		onTreeRemoved()
+	end)
+end
 
--- ============================================================
--- Keep HoldDuration at 0 for newly added pages while TP is active
--- ============================================================ 
-local folder = getPageFolder()
-if folder then
-	folder.ChildAdded:Connect(function(child)
-		task.wait(0.1)
-		if tpActive and child:IsA("BasePart") then
-			local prompt = child:FindFirstChildOfClass("ProximityPrompt")
-			if prompt then
-				if originalHoldDurations[child] == nil then
-					originalHoldDurations[child] = prompt.HoldDuration
-				end
-				prompt.HoldDuration = 0
-			end
-			-- Auto-teleport to the new page as well if TP is still active
-			if tpActive and not tpRunning then
-				startAutoTP()
-			end
+-- Слежу за появлением/удалением деревьев в нужных контейнерах
+local function watchContainer(container)
+	container.ChildAdded:Connect(function(child)
+		if isSlenderTree(child) then
+			onTreeAdded(child)
+		end
+	end)
+	container.ChildRemoved:Connect(function(child)
+		if isSlenderTree(child) then
+			removeHighlight(child)
 		end
 	end)
 end
+
+-- Подсветить уже существующие деревья и следить за map
+local map = workspace:FindFirstChild("map")
+if map then
+	for _, child in map:GetChildren() do
+		if isSlenderTree(child) then
+			seen[child] = true
+			addHighlight(child)
+			activeTreeCount = activeTreeCount + 1
+		end
+	end
+	updatePanel(false)
+	watchContainer(map)
+end
+
+-- Если SlenderTree может появиться в другом месте Workspace — следим и там
+watchContainer(workspace)
+
+-- Если папка map появится позже — начнём следить и за ней
+workspace.ChildAdded:Connect(function(child)
+	if (child:IsA("Model") or child:IsA("Folder")) and child.Name == "map" then
+		watchContainer(child)
+	end
+end)
