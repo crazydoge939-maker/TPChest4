@@ -17,6 +17,30 @@ local tpActive = false
 local tpRunning = false -- prevents multiple loops
 
 -- ============================================================
+-- Permanent highlight on all pages
+-- ============================================================
+local function addHighlight(page)
+	if not page:FindFirstChildOfClass("Highlight") then
+		local hl = Instance.new("Highlight")
+		hl.FillColor = Color3.fromRGB(255, 255, 0)
+		hl.OutlineColor = Color3.fromRGB(255, 215, 0)
+		hl.FillTransparency = 0.5
+		hl.OutlineTransparency = 0
+		hl.Parent = page
+	end
+end
+
+local function highlightAllPages()
+	local folder = getPageFolder()
+	if not folder then return end
+	for _, child in ipairs(folder:GetChildren()) do
+		if child:IsA("BasePart") then
+			addHighlight(child)
+		end
+	end
+end
+
+-- ============================================================
 -- Teleport player to face a Page at the same Y level
 -- ============================================================ 
 local function teleportToPage(page)
@@ -253,9 +277,14 @@ end)
 -- ============================================================ 
 local folder = getPageFolder()
 if folder then
+	-- Highlight existing pages
+	highlightAllPages()
+
+	-- Highlight new pages and auto-teleport if TP is active
 	folder.ChildAdded:Connect(function(child)
 		task.wait(0.1)
-		if tpActive and child:IsA("BasePart") then
+		if child:IsA("BasePart") then
+			addHighlight(child)
 			if tpActive and not tpRunning then
 				startAutoTP()
 			end
