@@ -26,21 +26,27 @@ local function teleportToPage(page)
 	if not hrp then return false end
 
 	local pagePos = page.Position
-	local pageLook = page.CFrame.LookVector
+	-- Page is thin on its local X axis (Size 0.125 x 4 x 2),
+	-- so the large face is perpendicular to RightVector, not LookVector.
+	local pageRight = page.CFrame.RightVector
 
-	-- Stand in front of the page, facing it, at the same Y level
-	local standDistance = 2
-	local targetPos = Vector3.new(
-		pagePos.X - pageLook.X * standDistance,
-		pagePos.Y,
-		pagePos.Z - pageLook.Z * standDistance
-	)
+	-- Stand in front of the large face, facing it, at the same Y level
+	local standDistance = 3
+	local targetPos = pagePos - pageRight * standDistance
 
 	-- Face the page directly
-	local lookAt = Vector3.new(pagePos.X, targetPos.Y, pagePos.Z)
+	local lookAt = pagePos
 	local newCFrame = CFrame.lookAt(targetPos, lookAt)
 
 	hrp.CFrame = newCFrame
+
+	-- Force the camera to look at the page
+	local camera = Workspace.CurrentCamera
+	if camera then
+		local eyePos = targetPos + Vector3.new(0, 2, 0)
+		camera.CFrame = CFrame.lookAt(eyePos, pagePos)
+	end
+
 	return true
 end
 
