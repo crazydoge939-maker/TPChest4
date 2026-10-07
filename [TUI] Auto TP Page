@@ -15,6 +15,14 @@ end
 
 local tpActive = false
 local tpRunning = false -- prevents multiple loops
+local currentPlatform = nil -- platform created under the player
+
+local function removePlatform()
+	if currentPlatform then
+		currentPlatform:Destroy()
+		currentPlatform = nil
+	end
+end
 
 -- ============================================================
 -- Permanent highlight on all pages
@@ -43,31 +51,72 @@ end
 -- ============================================================
 -- Teleport player to face a Page at the same Y level
 -- ============================================================ 
+-- ============================================================
+-- Find the thinnest axis of a part to determine its face direction
+-- ============================================================
+local function getThinAxisVector(part)
+	local size = part.Size
+	local cf = part.CFrame
+	-- Determine which axis is the thinnest
+	if size.X <= size.Y and size.X <= size.Z then
+		return cf.RightVector
+	elseif size.Y <= size.X and size.Y <= size.Z then
+		return cf.UpVector
+	else
+		return cf.LookVector
+	end
+end
+
+-- ============================================================
+-- Create a platform under the player at the given position
+-- ============================================================
+local function createPlatformAt(pos)
+	removePlatform()
+
+	local platform = Instance.new("Part")
+	platform.Name = "PageTPPlatform"
+	platform.Size = Vector3.new(8, 1, 8)
+	platform.Position = Vector3.new(pos.X, pos.Y - 3.5, pos.Z)
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Material = Enum.Material.Neon
+	platform.Color = Color3.fromRGB(50, 50, 60)
+	platform.Transparency = 0.3
+	platform.Parent = Workspace
+	currentPlatform = platform
+end
+
+-- ============================================================
+-- Teleport player to face a Page at the same Y level
+-- ============================================================ 
 local function teleportToPage(page)
 	local character = player.Character
 	if not character then return false end
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	if not hrp then return false end
+	if not page or not page.Parent then return false end
 
 	local pagePos = page.Position
-	-- Page is thin on its local X axis (Size 0.125 x 4 x 2),
-	-- so the large face is perpendicular to RightVector, not LookVector.
-	local pageRight = page.CFrame.RightVector
+
+	-- Dynamically detect the thinnest axis to find the large face
+	local thinVector = getThinAxisVector(page)
 
 	-- Stand in front of the large face, facing it, at the same Y level
 	local standDistance = 3
-	local targetPos = pagePos - pageRight * standDistance
+	local targetPos = pagePos - thinVector * standDistance
 
-	-- Face the page directly
-	local lookAt = pagePos
-	local newCFrame = CFrame.lookAt(targetPos, lookAt)
+	-- Create a platform under the player so they stand at the page's Y level
+	createPlatformAt(targetPos)
 
-	hrp.CFrame = newCFrame
+	-- Place the player on top of the platform, facing the page
+	local standPos = Vector3.new(targetPos.X, pagePos.Y, targetPos.Z)
+	local lookAt = Vector3.new(pagePos.X, standPos.Y, pagePos.Z)
+	hrp.CFrame = CFrame.lookAt(standPos, lookAt)
 
 	-- Force the camera to look at the page
 	local camera = Workspace.CurrentCamera
 	if camera then
-		local eyePos = targetPos + Vector3.new(0, 2, 0)
+		local eyePos = standPos + Vector3.new(0, 2, 0)
 		camera.CFrame = CFrame.lookAt(eyePos, pagePos)
 	end
 
@@ -134,6 +183,7 @@ local function startAutoTP()
 				end
 			end
 		end
+		removePlatform()
 		tpRunning = false
 	end)
 end
@@ -250,6 +300,7 @@ toggleBtn.MouseButton1Click:Connect(function()
 	else
 		toggleBtn.Text = "TP: OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+		removePlatform()
 	end
 end)
 
@@ -257,6 +308,7 @@ end)
 -- Portal button logic
 -- ============================================================ 
 portalBtn.MouseButton1Click:Connect(function()
+	removePlatform()
 	teleportToPortal()
 end)
 
