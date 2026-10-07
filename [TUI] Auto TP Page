@@ -84,7 +84,11 @@ local function startAutoTP()
 	task.spawn(function()
 		while tpActive do
 			local folder = getPageFolder()
-			if not folder then break end
+			if not folder then
+				-- Map or Page folder not loaded yet; wait and retry
+				task.wait(1)
+				continue
+			end
 
 			local pages = {}
 			for _, child in ipairs(folder:GetChildren()) do
@@ -93,7 +97,11 @@ local function startAutoTP()
 				end
 			end
 
-			if #pages == 0 then break end
+			if #pages == 0 then
+				-- No pages right now; wait for new ones to be added
+				task.wait(1)
+				continue
+			end
 
 			-- Sort by name for consistent order
 			table.sort(pages, function(a, b)
@@ -104,10 +112,24 @@ local function startAutoTP()
 				if not tpActive then break end
 				-- Re-check the page still exists
 				if page and page.Parent then
-					teleportToPage(page)
-					-- Wait here until the page is collected (destroyed)
-					while tpActive and page and page.Parent do
-						task.wait(0.1)
+					-- Try to teleport, retry a few times if character isn't ready
+					local teleported = false
+					for attempt = 1, 5 do
+						if not tpActive or not page or not page.Parent then break end
+						if teleportToPage(page) then
+							teleported = true
+							break
+						end
+						task.wait(0.5)
+					end
+
+					if teleported then
+						-- Wait until the page is collected (destroyed) or 10s timeout
+						local waited = 0
+						while tpActive and page and page.Parent and waited < 10 do
+							task.wait(0.1)
+							waited = waited + 0.1
+						end
 					end
 				end
 			end
@@ -275,8 +297,7 @@ end)
 -- ============================================================
 -- Auto-teleport to newly added pages while TP is active
 -- ============================================================ 
-local folder = getPageFolder()
-if folder then
+local function setupFolderListener(folder)
 	-- Highlight existing pages
 	highlightAllPages()
 
@@ -287,6 +308,32 @@ if folder then
 			addHighlight(child)
 			if tpActive and not tpRunning then
 				startAutoTP()
+			end
+		end
+	end)
+end
+
+local folder = getPageFolder()
+if folder then
+	setupFolderListener(folder)
+else
+	-- Map or Page folder doesn't exist yet; watch for it
+	local connection
+	connection = Workspace.ChildAdded:Connect(function(child)
+		if child.Name == "Map" and child:IsA("Folder") then
+			local pageFolder = child:FindFirstChild("Page")
+			if pageFolder then
+				setupFolderListener(pageFolder)
+				connection:Disconnect()
+			else
+				local innerConn
+				innerConn = child.ChildAdded:Connect(function(innerChild)
+					if innerChild.Name == "Page" and innerChild:IsA("Folder") then
+						setupFolderListener(innerChild)
+						innerConn:Disconnect()
+						connection:Disconnect()
+					end
+				end)
 			end
 		end
 	end)
