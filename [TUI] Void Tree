@@ -1,5 +1,7 @@
--- Динамически подсвечивает все модели SlenderTree и показывает оповещение
--- при спавне нового дерева. UI полностью на Scale — корректно на любых экранах.
+-- Динамически подсвечивает все модели SlenderTree и Witch и показывает оповещение
+-- при спавне новых объектов. UI полностью на Scale — корректно на любых экранах.
+-- Поиск идёт по всем потомкам Workspace независимо от вложенности папок.
+-- Для каждого типа цели — своя независимая панель.
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -7,207 +9,256 @@ local Players = game:GetService("Players")
 local HIGHLIGHT_NAME = "TreeHighlight"
 local localPlayer = Players.LocalPlayer
 
+-- Конфигурация целей поиска
+local TARGETS = {
+	SlenderTree = {
+		fillColor = Color3.fromRGB(0, 255, 140),
+		outlineColor = Color3.fromRGB(255, 255, 255),
+		statusText = "SlenderTree обнаружен!",
+		statusColor = Color3.fromRGB(0, 255, 140),
+		countColor = Color3.fromRGB(0, 200, 110),
+		indicatorColor = Color3.fromRGB(0, 255, 140),
+		strokeColor = Color3.fromRGB(0, 255, 140),
+		bgColor = Color3.fromRGB(15, 35, 20),
+		bgColorIdle = Color3.fromRGB(15, 25, 15),
+		noneText = "Нет деревьев",
+		panelOffset = 0, -- 0 = верхняя панель
+	},
+	Witch = {
+		fillColor = Color3.fromRGB(180, 0, 255),
+		outlineColor = Color3.fromRGB(255, 255, 255),
+		statusText = "Witch обнаружена!",
+		statusColor = Color3.fromRGB(180, 0, 255),
+		countColor = Color3.fromRGB(160, 0, 220),
+		indicatorColor = Color3.fromRGB(180, 0, 255),
+		strokeColor = Color3.fromRGB(180, 0, 255),
+		bgColor = Color3.fromRGB(35, 15, 40),
+		bgColorIdle = Color3.fromRGB(25, 15, 30),
+		noneText = "Нет ведьм",
+		panelOffset = 0.10, -- ниже на 10% от высоты экрана
+	},
+}
+
 -- ===== Подсветка =====
-local function addHighlight(tree)
-	if not tree:FindFirstChild(HIGHLIGHT_NAME) then
+local function addHighlight(model, targetName)
+	if not model:FindFirstChild(HIGHLIGHT_NAME) then
+		local config = TARGETS[targetName]
 		local highlight = Instance.new("Highlight")
 		highlight.Name = HIGHLIGHT_NAME
-		highlight.FillColor = Color3.fromRGB(0, 255, 140)
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillColor = config.fillColor
+		highlight.OutlineColor = config.outlineColor
 		highlight.FillTransparency = 0.7
 		highlight.OutlineTransparency = 0
 		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		highlight.Parent = tree
+		highlight.Parent = model
 	end
 end
 
-local function removeHighlight(tree)
-	local highlight = tree:FindFirstChild(HIGHLIGHT_NAME)
+local function removeHighlight(model)
+	local highlight = model:FindFirstChild(HIGHLIGHT_NAME)
 	if highlight then
 		highlight:Destroy()
 	end
 end
 
-local function isSlenderTree(instance)
-	return instance:IsA("Model") and instance.Name == "SlenderTree"
+local function getTargetName(instance)
+	if instance:IsA("Model") and TARGETS[instance.Name] then
+		return instance.Name
+	end
+	return nil
 end
 
--- ===== Мини-панель обнаружения (постоянная) =====
+-- ===== Создание независимых панелей =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SlenderTreeNotifications"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
--- Мини-панель в правом верхнем углу
-local panel = Instance.new("Frame")
-panel.Name = "SlenderTreePanel"
-panel.AnchorPoint = Vector2.new(1, 0)
-panel.Position = UDim2.fromScale(0.97, 0.04)
-panel.Size = UDim2.fromScale(0.22, 0.08)
-panel.BackgroundColor3 = Color3.fromRGB(15, 25, 15)
-panel.BackgroundTransparency = 0.2
-panel.BorderSizePixel = 0
-panel.Parent = screenGui
+-- Фабрика: создаёт одну панель для конкретного типа цели
+local function createPanel(targetName, config)
+	local yOffset = config.panelOffset
 
-local panelCorner = Instance.new("UICorner")
-panelCorner.CornerRadius = UDim.new(0.12, 0)
-panelCorner.Parent = panel
+	local panel = Instance.new("Frame")
+	panel.Name = targetName .. "Panel"
+	panel.AnchorPoint = Vector2.new(1, 0)
+	panel.Position = UDim2.fromScale(0.97, 0.04 + yOffset)
+	panel.Size = UDim2.fromScale(0.22, 0.08)
+	panel.BackgroundColor3 = config.bgColorIdle
+	panel.BackgroundTransparency = 0.2
+	panel.BorderSizePixel = 0
+	panel.Parent = screenGui
 
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Name = "Stroke"
-panelStroke.Color = Color3.fromRGB(80, 80, 80)
-panelStroke.Thickness = 1.5
-panelStroke.Transparency = 0.3
-panelStroke.Parent = panel
+	local panelCorner = Instance.new("UICorner")
+	panelCorner.CornerRadius = UDim.new(0.12, 0)
+	panelCorner.Parent = panel
 
--- Иконка-индикатор слева
-local indicator = Instance.new("Frame")
-indicator.Name = "Indicator"
-indicator.AnchorPoint = Vector2.new(0, 0.5)
-indicator.Position = UDim2.fromScale(0.06, 0.5)
-indicator.Size = UDim2.fromScale(0.12, 0.55)
-indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-indicator.BorderSizePixel = 0
-indicator.Parent = panel
+	local panelStroke = Instance.new("UIStroke")
+	panelStroke.Name = "Stroke"
+	panelStroke.Color = Color3.fromRGB(80, 80, 80)
+	panelStroke.Thickness = 1.5
+	panelStroke.Transparency = 0.3
+	panelStroke.Parent = panel
 
-local indicatorCorner = Instance.new("UICorner")
-indicatorCorner.CornerRadius = UDim.new(1, 0)
-indicatorCorner.Parent = indicator
+	local indicator = Instance.new("Frame")
+	indicator.Name = "Indicator"
+	indicator.AnchorPoint = Vector2.new(0, 0.5)
+	indicator.Position = UDim2.fromScale(0.06, 0.5)
+	indicator.Size = UDim2.fromScale(0.12, 0.55)
+	indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	indicator.BorderSizePixel = 0
+	indicator.Parent = panel
 
--- Текст статуса
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Name = "StatusLabel"
-statusLabel.AnchorPoint = Vector2.new(0, 0.5)
-statusLabel.Position = UDim2.fromScale(0.22, 0.35)
-statusLabel.Size = UDim2.fromScale(0.74, 0.4)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.Text = "Нет деревьев"
-statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-statusLabel.TextScaled = true
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Parent = panel
+	local indicatorCorner = Instance.new("UICorner")
+	indicatorCorner.CornerRadius = UDim.new(1, 0)
+	indicatorCorner.Parent = indicator
 
-local statusConstraint = Instance.new("UITextSizeConstraint")
-statusConstraint.MaxTextSize = 16
-statusConstraint.MinTextSize = 8
-statusConstraint.Parent = statusLabel
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "StatusLabel"
+	statusLabel.AnchorPoint = Vector2.new(0, 0.5)
+	statusLabel.Position = UDim2.fromScale(0.22, 0.35)
+	statusLabel.Size = UDim2.fromScale(0.74, 0.4)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Font = Enum.Font.GothamBold
+	statusLabel.Text = config.noneText
+	statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+	statusLabel.TextScaled = true
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.Parent = panel
 
--- Текст счётчика
-local countLabel = Instance.new("TextLabel")
-countLabel.Name = "CountLabel"
-countLabel.AnchorPoint = Vector2.new(0, 0.5)
-countLabel.Position = UDim2.fromScale(0.22, 0.72)
-countLabel.Size = UDim2.fromScale(0.74, 0.3)
-countLabel.BackgroundTransparency = 1
-countLabel.Font = Enum.Font.Gotham
-countLabel.Text = ""
-countLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
-countLabel.TextScaled = true
-countLabel.TextXAlignment = Enum.TextXAlignment.Left
-countLabel.Parent = panel
+	local statusConstraint = Instance.new("UITextSizeConstraint")
+	statusConstraint.MaxTextSize = 16
+	statusConstraint.MinTextSize = 8
+	statusConstraint.Parent = statusLabel
 
-local countConstraint = Instance.new("UITextSizeConstraint")
-countConstraint.MaxTextSize = 13
-countConstraint.MinTextSize = 7
-countConstraint.Parent = countLabel
+	local countLabel = Instance.new("TextLabel")
+	countLabel.Name = "CountLabel"
+	countLabel.AnchorPoint = Vector2.new(0, 0.5)
+	countLabel.Position = UDim2.fromScale(0.22, 0.72)
+	countLabel.Size = UDim2.fromScale(0.74, 0.3)
+	countLabel.BackgroundTransparency = 1
+	countLabel.Font = Enum.Font.Gotham
+	countLabel.Text = ""
+	countLabel.TextColor3 = Color3.fromRGB(130, 130, 130)
+	countLabel.TextScaled = true
+	countLabel.TextXAlignment = Enum.TextXAlignment.Left
+	countLabel.Parent = panel
 
--- ===== Состояние панели =====
-local activeTreeCount = 0
+	local countConstraint = Instance.new("UITextSizeConstraint")
+	countConstraint.MaxTextSize = 13
+	countConstraint.MinTextSize = 7
+	countConstraint.Parent = countLabel
 
-local function updatePanel(newTreeDetected)
-	if activeTreeCount > 0 then
-		statusLabel.Text = "SlenderTree обнаружен!"
-		statusLabel.TextColor3 = Color3.fromRGB(0, 255, 140)
-		countLabel.Text = "Активных: " .. activeTreeCount
-		countLabel.TextColor3 = Color3.fromRGB(0, 200, 110)
-		indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
-		panelStroke.Color = Color3.fromRGB(0, 255, 140)
-		panelStroke.Transparency = 0
-		panel.BackgroundColor3 = Color3.fromRGB(15, 35, 20)
+	return {
+		panel = panel,
+		stroke = panelStroke,
+		indicator = indicator,
+		statusLabel = statusLabel,
+		countLabel = countLabel,
+		count = 0,
+	}
+end
 
-		-- Пульс при обнаружении нового дерева
-		if newTreeDetected then
+-- Создаём панель для каждого типа цели
+local panels = {}
+for name, config in pairs(TARGETS) do
+	panels[name] = createPanel(name, config)
+end
+
+-- ===== Логика обновления каждой панели =====
+local function updatePanel(targetName, newDetected)
+	local p = panels[targetName]
+	local config = TARGETS[targetName]
+	if not p then return end
+
+	if p.count > 0 then
+		p.statusLabel.Text = config.statusText
+		p.statusLabel.TextColor3 = config.statusColor
+		p.countLabel.Text = "Активных: " .. p.count
+		p.countLabel.TextColor3 = config.countColor
+		p.indicator.BackgroundColor3 = config.indicatorColor
+		p.stroke.Color = config.strokeColor
+		p.stroke.Transparency = 0
+		p.panel.BackgroundColor3 = config.bgColor
+
+		-- Пульс при обнаружении новой цели
+		if newDetected then
 			local pulseInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			TweenService:Create(panel, pulseInfo, { BackgroundTransparency = 0 }):Play()
-			TweenService:Create(indicator, pulseInfo, { BackgroundColor3 = Color3.fromRGB(100, 255, 170) }):Play()
+			TweenService:Create(p.panel, pulseInfo, { BackgroundTransparency = 0 }):Play()
+			TweenService:Create(p.indicator, pulseInfo, { BackgroundColor3 = config.indicatorColor:Lerp(Color3.new(1, 1, 1), 0.4) }):Play()
 			task.delay(0.3, function()
 				local fadeInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-				TweenService:Create(panel, fadeInfo, { BackgroundTransparency = 0.2 }):Play()
-				TweenService:Create(indicator, fadeInfo, { BackgroundColor3 = Color3.fromRGB(0, 255, 140) }):Play()
+				TweenService:Create(p.panel, fadeInfo, { BackgroundTransparency = 0.2 }):Play()
+				TweenService:Create(p.indicator, fadeInfo, { BackgroundColor3 = config.indicatorColor }):Play()
 			end)
 		end
 	else
-		statusLabel.Text = "Нет деревьев"
-		statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-		countLabel.Text = ""
-		indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-		panelStroke.Color = Color3.fromRGB(80, 80, 80)
-		panelStroke.Transparency = 0.3
-		panel.BackgroundColor3 = Color3.fromRGB(15, 25, 15)
+		p.statusLabel.Text = config.noneText
+		p.statusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+		p.countLabel.Text = ""
+		p.indicator.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+		p.stroke.Color = Color3.fromRGB(80, 80, 80)
+		p.stroke.Transparency = 0.3
+		p.panel.BackgroundColor3 = config.bgColorIdle
 	end
 end
 
-local function showNotification()
-	activeTreeCount = activeTreeCount + 1
-	updatePanel(true)
+local function showNotification(targetName)
+	local p = panels[targetName]
+	if not p then return end
+	p.count = p.count + 1
+	updatePanel(targetName, true)
 end
 
-local function onTreeRemoved()
-	activeTreeCount = activeTreeCount - 1
-	if activeTreeCount < 0 then activeTreeCount = 0 end
-	updatePanel(false)
+local function onTargetRemoved(targetName)
+	local p = panels[targetName]
+	if not p then return end
+	p.count = p.count - 1
+	if p.count < 0 then p.count = 0 end
+	updatePanel(targetName, false)
 end
 
--- ===== Слежение за деревьями =====
-local seen = {} -- чтобы не дублировать оповещение для одного дерева
+-- ===== Слежение за целями (по всем потомкам Workspace, любой глубины) =====
+local seen = {} -- чтобы не дублировать оповещение для одной цели
 
-local function onTreeAdded(tree)
-	if seen[tree] then return end
-	seen[tree] = true
-	addHighlight(tree)
-	showNotification()
-	tree.Destroying:Connect(function()
-		seen[tree] = nil
-		onTreeRemoved()
+local function onTargetAdded(model, targetName)
+	if seen[model] then return end
+	seen[model] = true
+	addHighlight(model, targetName)
+	showNotification(targetName)
+	model.Destroying:Connect(function()
+		seen[model] = nil
+		onTargetRemoved(targetName)
 	end)
 end
 
--- Слежу за появлением/удалением деревьев в нужных контейнерах
-local function watchContainer(container)
-	container.ChildAdded:Connect(function(child)
-		if isSlenderTree(child) then
-			onTreeAdded(child)
-		end
-	end)
-	container.ChildRemoved:Connect(function(child)
-		if isSlenderTree(child) then
-			removeHighlight(child)
-		end
-	end)
-end
-
--- Подсветить уже существующие деревья и следить за map
-local map = workspace:FindFirstChild("map")
-if map then
-	for _, child in map:GetChildren() do
-		if isSlenderTree(child) then
-			seen[child] = true
-			addHighlight(child)
-			activeTreeCount = activeTreeCount + 1
-		end
+-- Подсветить уже существующие цели (поиск везде через GetDescendants)
+for _, descendant in workspace:GetDescendants() do
+	local targetName = getTargetName(descendant)
+	if targetName then
+		seen[descendant] = true
+		addHighlight(descendant, targetName)
+		local p = panels[targetName]
+		if p then p.count = p.count + 1 end
 	end
-	updatePanel(false)
-	watchContainer(map)
+end
+-- Обновить все панели после начального скана
+for name in pairs(TARGETS) do
+	updatePanel(name, false)
 end
 
--- Если SlenderTree может появиться в другом месте Workspace — следим и там
-watchContainer(workspace)
+-- Слежение за появлением новых целей — DescendantAdded ловит любой вложенности
+workspace.DescendantAdded:Connect(function(descendant)
+	local targetName = getTargetName(descendant)
+	if targetName then
+		onTargetAdded(descendant, targetName)
+	end
+end)
 
--- Если папка map появится позже — начнём следить и за ней
-workspace.ChildAdded:Connect(function(child)
-	if (child:IsA("Model") or child:IsA("Folder")) and child.Name == "map" then
-		watchContainer(child)
+-- Слежение за удалением целей
+workspace.DescendantRemoving:Connect(function(descendant)
+	local targetName = getTargetName(descendant)
+	if targetName then
+		removeHighlight(descendant)
 	end
 end)
