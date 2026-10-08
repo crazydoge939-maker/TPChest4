@@ -17,9 +17,9 @@ local PLACE_ID = game.PlaceId
 local SAFE_TIME_START = 18.0
 local SAFE_TIME_END = 20.5
 -- Интервал проверки (секунды)
-local CHECK_INTERVAL = 10
+local CHECK_INTERVAL = 1
 -- Задержка перед телепортом после обнаружения отсутствия целей (секунды)
-local TELEPORT_DELAY = 15
+local TELEPORT_DELAY = 1
 
 -- Проверка, находится ли текущее время в безопасном диапазоне 18:00-20:30
 local function isSafeTime()
