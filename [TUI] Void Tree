@@ -1,3 +1,4 @@
+
 -- Динамически подсвечивает все модели SlenderTree и Witch и показывает оповещение
 -- при спавне новых объектов. UI полностью на Scale — корректно на любых экранах.
 -- Поиск идёт по всем потомкам Workspace независимо от вложенности папок.
@@ -13,7 +14,10 @@ local HIGHLIGHT_NAME = "TreeHighlight"
 local localPlayer = Players.LocalPlayer
 
 -- ===== Настройки телепорта =====
-local PLACE_ID = game.PlaceId
+-- Если указать число вручную (например, 1234567890), оно используется вместо game.PlaceId.
+-- 0 = определять автоматически. После публикации игры оставь 0.
+local MANUAL_PLACE_ID = 0
+local PLACE_ID = MANUAL_PLACE_ID ~= 0 and MANUAL_PLACE_ID or game.PlaceId
 -- Диапазон безопасного времени: 18:00 = 18.0, 20:30 = 20.5
 local SAFE_TIME_START = 18.0
 local SAFE_TIME_END = 20.1
@@ -73,6 +77,12 @@ local function getPublicServers()
 end
 
 local function teleportToRandomServer()
+	-- Место не опубликовано — телепортироваться некуда (PlaceId = 0)
+	if PLACE_ID <= 0 then
+		warn("[SlenderTreeHighlight] Игра не опубликована (PlaceId = 0), телепорт невозможен. Опубликуй игру.")
+		return
+	end
+
 	local servers = getPublicServers()
 
 	if not servers or #servers == 0 then
