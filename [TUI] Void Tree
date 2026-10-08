@@ -15,7 +15,7 @@ local localPlayer = Players.LocalPlayer
 local PLACE_ID = game.PlaceId
 -- Диапазон безопасного времени: 18:00 = 18.0, 20:30 = 20.5
 local SAFE_TIME_START = 18.0
-local SAFE_TIME_END = 20.5
+local SAFE_TIME_END = 20.1
 -- Интервал проверки (секунды)
 local CHECK_INTERVAL = 1
 -- Задержка перед телепортом после обнаружения отсутствия целей (секунды)
