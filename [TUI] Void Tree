@@ -1,3 +1,5 @@
+
+
 -- Динамически подсвечивает все модели SlenderTree и Witch и показывает оповещение
 -- при спавне новых объектов. UI полностью на Scale — корректно на любых экранах.
 -- Поиск идёт по всем потомкам Workspace независимо от вложенности папок.
@@ -7,16 +9,12 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 
 local HIGHLIGHT_NAME = "TreeHighlight"
 local localPlayer = Players.LocalPlayer
 
 -- ===== Настройки телепорта =====
--- Если указать число вручную (например, 1234567890), оно используется вместо game.PlaceId.
--- 0 = определять автоматически. После публикации игры оставь 0.
-local MANUAL_PLACE_ID = 0
-local PLACE_ID = MANUAL_PLACE_ID ~= 0 and MANUAL_PLACE_ID or game.PlaceId
+local PLACE_ID = game.PlaceId
 -- Диапазон безопасного времени: 18:00 = 18.0, 20:30 = 20.5
 local SAFE_TIME_START = 18.0
 local SAFE_TIME_END = 20.1
@@ -41,86 +39,6 @@ local function hasTargets()
 	return false
 end
 
--- ===== Телепорт на случайный сервер =====
--- Собираем список публичных серверов через API, исключаем текущий,
--- затем выбираем случайный и телепортируемся в него.
-local function getPublicServers()
-	local servers = {}
-	local cursor = ""
-
-	local ok = pcall(function()
-		repeat
-			local url = "https://games.roblox.com/v1/games/" .. PLACE_ID
-				.. "/servers/Public?sortOrder=2&excludeFullGames=true&limit=100"
-				.. (cursor ~= "" and ("&cursor=" .. cursor) or "")
-
-			local response = HttpService:GetAsync(url)
-			local data = HttpService:JSONDecode(response)
-
-			for _, serverInfo in ipairs(data.data) do
-				-- Пропускаем текущий сервер и заполненные
-				if serverInfo.id ~= game.JobId and serverInfo.playing < serverInfo.maxPlayers then
-					table.insert(servers, serverInfo.id)
-				end
-			end
-
-			cursor = data.nextPageCursor or ""
-		until cursor == ""
-	end)
-
-	if not ok then
-		warn("[SlenderTreeHighlight] Не удалось получить список серверов")
-		return nil
-	end
-	return servers
-end
-
-local function teleportToRandomServer()
-	-- Место не опубликовано — телепортироваться некуда (PlaceId = 0)
-	if PLACE_ID <= 0 then
-		warn("[SlenderTreeHighlight] Игра не опубликована (PlaceId = 0), телепорт невозможен. Опубликуй игру.")
-		return
-	end
-
-	local servers = getPublicServers()
-
-	if not servers or #servers == 0 then
-		-- Других публичных серверов сейчас нет — телепортироваться некуда.
-		-- Основной цикл через пару секунд повторит попытку.
-		print("[SlenderTreeHighlight] Других серверов не найдено, повторю попытку позже")
-		return
-	end
-
-	local randomJobId = servers[math.random(1, #servers)]
-	print("[SlenderTreeHighlight] Телепортация на случайный сервер (JobId: " .. randomJobId .. ", вариантов: " .. #servers .. ")")
-	pcall(function()
-		TeleportService:TeleportToPlaceInstance(PLACE_ID, randomJobId, localPlayer)
-	end)
-end
-
--- Если телепорт сорвался (сервер заполнился/закрылся и т.п.) —
--- пробуем другой случайный сервер, а не матчмейкинг (он возвращает на тот же сервер)
-local retryCount = 0
-local lastRetryReset = 0
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, message)
-	if player ~= localPlayer then return end
-
-	-- Сбрасываем счётчик попыток, если с последней ошибки прошло много времени
-	if os.clock() - lastRetryReset > 30 then
-		retryCount = 0
-	end
-	lastRetryReset = os.clock()
-	retryCount += 1
-
-	if retryCount > 5 then
-		warn("[SlenderTreeHighlight] Слишком много неудачных телепортов, отмена")
-		return
-	end
-
-	print("[SlenderTreeHighlight] Телепорт не удался (" .. tostring(teleportResult) .. "), пробую другой сервер: " .. tostring(message))
-	task.delay(2, teleportToRandomServer)
-end)
-
 -- ===== Цикл телепорта (работает параллельно на клиенте) =====
 task.spawn(function()
 	local countdown = 0
@@ -139,7 +57,9 @@ task.spawn(function()
 			countdown -= CHECK_INTERVAL
 			if countdown <= 0 then
 				print("[SlenderTreeHighlight] Телепортация на случайный сервер...")
-				teleportToRandomServer()
+				pcall(function()
+					TeleportService:Teleport(PLACE_ID, localPlayer)
+				end)
 				isCounting = false
 			end
 		else
