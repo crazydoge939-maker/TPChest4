@@ -1,3 +1,4 @@
+
 -- Динамически подсвечивает все модели SlenderTree и Witch и показывает оповещение
 -- при спавне новых объектов. UI полностью на Scale — корректно на любых экранах.
 -- Поиск идёт по всем потомкам Workspace независимо от вложенности папок.
@@ -7,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
 local HIGHLIGHT_NAME = "TreeHighlight"
 local localPlayer = Players.LocalPlayer
@@ -37,6 +39,60 @@ local function hasTargets()
 	return false
 end
 
+-- ===== Телепорт на случайный сервер =====
+-- Собираем список публичных серверов через API, исключаем текущий,
+-- затем выбираем случайный и телепортируемся в него.
+local function getPublicServers()
+	local servers = {}
+	local cursor = ""
+
+	local ok = pcall(function()
+		repeat
+			local url = "https://games.roblox.com/v1/games/" .. PLACE_ID
+				.. "/servers/Public?sortOrder=2&excludeFullGames=true&limit=100"
+				.. (cursor ~= "" and ("&cursor=" .. cursor) or "")
+
+			local response = HttpService:GetAsync(url)
+			local data = HttpService:JSONDecode(response)
+
+			for _, serverInfo in ipairs(data.data) do
+				-- Пропускаем текущий сервер и заполненные
+				if serverInfo.id ~= game.JobId and serverInfo.playing < serverInfo.maxPlayers then
+					table.insert(servers, serverInfo.id)
+				end
+			end
+
+			cursor = data.nextPageCursor or ""
+		until cursor == ""
+	end)
+
+	if not ok then
+		warn("[SlenderTreeHighlight] Не удалось получить список серверов")
+		return nil
+	end
+	return servers
+end
+
+local function teleportToRandomServer()
+	local servers = getPublicServers()
+
+	if servers and #servers > 0 then
+		local randomJobId = servers[math.random(1, #servers)]
+		print("[SlenderTreeHighlight] Телепортация на случайный сервер (JobId: " .. randomJobId .. ")")
+		local ok = pcall(function()
+			TeleportService:TeleportToPlaceInstance(PLACE_ID, randomJobId, localPlayer)
+		end)
+		if not ok then
+			-- Fallback: обычный телепорт через матчмейкинг
+			TeleportService:Teleport(PLACE_ID, localPlayer)
+		end
+	else
+		-- Список недоступен (например, в Studio) — обычный телепорт
+		print("[SlenderTreeHighlight] Список серверов недоступен, телепорт через матчмейкинг")
+		TeleportService:Teleport(PLACE_ID, localPlayer)
+	end
+end
+
 -- ===== Цикл телепорта (работает параллельно на клиенте) =====
 task.spawn(function()
 	local countdown = 0
@@ -54,10 +110,8 @@ task.spawn(function()
 
 			countdown -= CHECK_INTERVAL
 			if countdown <= 0 then
-				print("[SlenderTreeHighlight] Телепортация на другой сервер...")
-				pcall(function()
-					TeleportService:Teleport(PLACE_ID, localPlayer)
-				end)
+				print("[SlenderTreeHighlight] Телепортация на случайный сервер...")
+				teleportToRandomServer()
 				isCounting = false
 			end
 		else
