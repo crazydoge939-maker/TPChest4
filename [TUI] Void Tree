@@ -5,9 +5,69 @@
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
 
 local HIGHLIGHT_NAME = "TreeHighlight"
 local localPlayer = Players.LocalPlayer
+
+-- ===== Настройки телепорта =====
+local PLACE_ID = game.PlaceId
+-- Диапазон безопасного времени: 18:00 = 18.0, 20:30 = 20.5
+local SAFE_TIME_START = 18.0
+local SAFE_TIME_END = 20.5
+-- Интервал проверки (секунды)
+local CHECK_INTERVAL = 10
+-- Задержка перед телепортом после обнаружения отсутствия целей (секунды)
+local TELEPORT_DELAY = 15
+
+-- Проверка, находится ли текущее время в безопасном диапазоне 18:00-20:30
+local function isSafeTime()
+	local clockTime = Lighting.ClockTime
+	return clockTime >= SAFE_TIME_START and clockTime <= SAFE_TIME_END
+end
+
+-- Есть ли хотя бы одна цель (SlenderTree или Witch)
+local function hasTargets()
+	for _, descendant in workspace:GetDescendants() do
+		if descendant:IsA("Model") and (descendant.Name == "SlenderTree" or descendant.Name == "Witch") then
+			return true
+		end
+	end
+	return false
+end
+
+-- ===== Цикл телепорта (работает параллельно на клиенте) =====
+task.spawn(function()
+	local countdown = 0
+	local isCounting = false
+
+	while true do
+		task.wait(CHECK_INTERVAL)
+
+		if not hasTargets() and not isSafeTime() then
+			if not isCounting then
+				isCounting = true
+				countdown = TELEPORT_DELAY
+				print("[SlenderTreeHighlight] Цели не обнаружены, время вне 18:00-20:30. Отсчёт: " .. countdown .. "с")
+			end
+
+			countdown -= CHECK_INTERVAL
+			if countdown <= 0 then
+				print("[SlenderTreeHighlight] Телепортация на другой сервер...")
+				pcall(function()
+					TeleportService:Teleport(PLACE_ID, localPlayer)
+				end)
+				isCounting = false
+			end
+		else
+			if isCounting then
+				isCounting = false
+				print("[SlenderTreeHighlight] Отмена телепорта — цели появились или время в безопасном диапазоне.")
+			end
+		end
+	end
+end)
 
 -- Конфигурация целей поиска
 local TARGETS = {
