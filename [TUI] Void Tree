@@ -1,4 +1,3 @@
-
 -- Динамически подсвечивает все модели SlenderTree и Witch и показывает оповещение
 -- при спавне новых объектов. UI полностью на Scale — корректно на любых экранах.
 -- Поиск идёт по всем потомкам Workspace независимо от вложенности папок.
@@ -51,7 +50,7 @@ local function getPublicServers()
 
 	local ok = pcall(function()
 		repeat
-			local url = "https://www.roblox.com/games/10523498173/Trollge-Universe-Incident" .. PLACE_ID
+			local url = "https://games.roblox.com/v1/games/" .. PLACE_ID
 				.. "/servers/Public?sortOrder=2&excludeFullGames=true&limit=100"
 				.. (cursor ~= "" and ("&cursor=" .. cursor) or "")
 
